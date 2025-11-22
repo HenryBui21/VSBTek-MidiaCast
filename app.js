@@ -999,12 +999,31 @@ class MediaCast {
     }
 
     async hashPassword(password) {
-        // Simple hash function using Web Crypto API
-        const encoder = new TextEncoder();
-        const data = encoder.encode(password);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        // Check if crypto.subtle is available (requires secure context: HTTPS or localhost)
+        if (window.crypto && window.crypto.subtle) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        } else {
+            // Fallback: Simple hash for non-secure contexts (HTTP)
+            // Note: This is less secure but works on HTTP
+            let hash = 0;
+            for (let i = 0; i < password.length; i++) {
+                const char = password.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            // Convert to hex and add salt for better security
+            const salt = 'vsbtek_mediacast_2024';
+            const saltedPassword = password + salt;
+            let hash2 = 5381;
+            for (let i = 0; i < saltedPassword.length; i++) {
+                hash2 = ((hash2 << 5) + hash2) + saltedPassword.charCodeAt(i);
+            }
+            return Math.abs(hash).toString(16) + Math.abs(hash2).toString(16);
+        }
     }
 
     authenticateUser(user) {
