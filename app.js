@@ -66,6 +66,7 @@ class MediaCast {
         // Gallery elements
         const clearAllBtn = document.getElementById('clearAllBtn');
         const slideshowBtn = document.getElementById('slideshowBtn');
+        const shareLinkBtn = document.getElementById('shareLinkBtn');
 
         // Slideshow elements
         const slideshowModal = document.getElementById('slideshowModal');
@@ -163,6 +164,10 @@ class MediaCast {
         nextBtn.addEventListener('click', () => this.nextSlide());
         playPauseBtn.addEventListener('click', () => this.togglePlayPause());
         closeSlideshow.addEventListener('click', () => this.closeSlideshow());
+
+        // Share link button
+        shareLinkBtn.addEventListener('click', () => this.openShareLinkModal());
+        this.initShareLinkListeners();
 
         // Zoom controls
         const zoomInBtn = document.getElementById('zoomInBtn');
@@ -1062,6 +1067,73 @@ class MediaCast {
     // Dropdown Menu
     closeDropdownMenu() {
         document.getElementById('userDropdownMenu').classList.remove('active');
+    }
+
+    // Share Link Methods
+    initShareLinkListeners() {
+        const closeBtn = document.getElementById('closeShareLinkModal');
+        const copyBtn = document.getElementById('copyLinkBtn');
+        const openBtn = document.getElementById('openLinkBtn');
+        const categorySelect = document.getElementById('shareLinkCategory');
+
+        closeBtn.addEventListener('click', () => {
+            document.getElementById('shareLinkModal').classList.remove('active');
+        });
+
+        copyBtn.addEventListener('click', async () => {
+            const input = document.getElementById('shareLinkInput');
+            try {
+                await navigator.clipboard.writeText(input.value);
+                // Visual feedback
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = 'Đã sao chép!';
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                }, 2000);
+            } catch (err) {
+                // Fallback for older browsers
+                input.select();
+                document.execCommand('copy');
+            }
+        });
+
+        openBtn.addEventListener('click', () => {
+            const link = document.getElementById('shareLinkInput').value;
+            window.open(link, '_blank');
+        });
+
+        categorySelect.addEventListener('change', () => {
+            this.updateShareLink();
+        });
+    }
+
+    openShareLinkModal() {
+        const modal = document.getElementById('shareLinkModal');
+        const categorySelect = document.getElementById('shareLinkCategory');
+
+        // Populate category select
+        categorySelect.innerHTML = '<option value="all">Tất cả</option>' +
+            this.categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+
+        // Generate initial link
+        this.updateShareLink();
+
+        modal.classList.add('active');
+    }
+
+    updateShareLink() {
+        const category = document.getElementById('shareLinkCategory').value;
+        const input = document.getElementById('shareLinkInput');
+
+        // Build slideshow URL
+        const baseUrl = window.location.origin + window.location.pathname.replace('index.html', '');
+        let slideshowUrl = `${baseUrl}slideshow.html`;
+
+        if (category !== 'all') {
+            slideshowUrl += `?category=${encodeURIComponent(category)}`;
+        }
+
+        input.value = slideshowUrl;
     }
 
     // User Management Methods

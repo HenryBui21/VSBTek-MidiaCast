@@ -1353,6 +1353,53 @@ h2 {
     color: var(--text-primary);
 }
 
+/* Share Link Styles */
+.share-link-description {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+}
+
+.share-link-box {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.share-link-box .modal-input {
+    flex: 1;
+    font-family: monospace;
+    font-size: 0.8rem;
+}
+
+.share-link-options {
+    margin-bottom: 1rem;
+}
+
+.share-link-options label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.share-link-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+/* Share TV Button */
+#shareLinkBtn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#shareLinkBtn svg {
+    flex-shrink: 0;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .header-container {
