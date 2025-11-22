@@ -1,0 +1,20 @@
+{
+  "name": "vsbtek-mediacast",
+  "version": "1.0.0",
+  "description": "Hệ thống quản lý và trình chiếu media cho quảng bá sản phẩm và sự kiện",
+  "main": "index.html",
+  "scripts": {
+    "start": "http-server -p 8000 -o",
+    "dev": "http-server -p 8000 -c-1 -o"
+  },
+  "keywords": [
+    "media",
+    "slideshow",
+    "presentation"
+  ],
+  "author": "VSBTek",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

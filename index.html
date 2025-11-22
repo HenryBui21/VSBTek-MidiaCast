@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VSBTek MediaCast - Quản lý Media</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Login Modal -->
+    <div class="login-modal active" id="loginModal">
+        <div class="login-content">
+            <div class="login-header">
+                <img src="logo.png" alt="VSBTek Logo" class="login-logo">
+                <h2>VSBTek MediaCast</h2>
+                <p>Vui lòng đăng nhập để tiếp tục</p>
+            </div>
+            <form class="login-form" id="loginForm">
+                <div class="form-group">
+                    <label for="loginUsername">Tên đăng nhập:</label>
+                    <input type="text" id="loginUsername" class="form-input" placeholder="Nhập tên đăng nhập" required autofocus>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Mật khẩu:</label>
+                    <input type="password" id="loginPassword" class="form-input" placeholder="Nhập mật khẩu" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Đăng nhập</button>
+                <p class="login-hint" id="loginHint">Lần đầu sử dụng? Nhập thông tin để tạo tài khoản admin.</p>
+            </form>
+        </div>
+    </div>
+
+    <header>
+        <div class="container header-container">
+            <div class="header-content">
+                <h1>VSBTek MediaCast</h1>
+                <p class="tagline">Quản lý và trình chiếu media chuyên nghiệp</p>
+            </div>
+            <div class="header-user-section">
+                <div class="logo-menu-wrapper" id="logoMenuWrapper">
+                    <img src="logo.png" alt="VSBTek Logo" id="headerLogo" class="clickable-logo">
+                    <div class="user-dropdown-menu" id="userDropdownMenu">
+                        <button class="dropdown-item" id="manageUsersBtn" style="display: none;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                            </svg>
+                            Quản lý người dùng
+                        </button>
+                        <button class="dropdown-item" id="changePasswordBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            Đổi mật khẩu
+                        </button>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item dropdown-item-danger" id="logoutBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                <polyline points="16 17 21 12 16 7"></polyline>
+                                <line x1="21" y1="12" x2="9" y2="12"></line>
+                            </svg>
+                            Đăng xuất
+                        </button>
+                    </div>
+                </div>
+                <span class="current-user" id="currentUser"></span>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <div class="upload-header">
+                <h2>Tải lên Media</h2>
+                <div class="upload-category-controls">
+                    <select id="uploadCategory" class="category-select">
+                        <option value="Chung">Chung</option>
+                    </select>
+                    <button class="btn btn-outline" id="manageCategoriesBtn">Quản lý danh mục</button>
+                </div>
+            </div>
+
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-content">
+                    <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <p class="upload-text">Kéo thả file vào đây hoặc nhấn để chọn</p>
+                    <p class="upload-hint">Hỗ trợ: JPG, PNG, GIF, MP4, WEBM</p>
+                    <input type="file" id="fileInput" accept="image/*,video/*" multiple hidden>
+                </div>
+            </div>
+        </section>
+
+        <!-- Gallery Section -->
+        <section class="gallery-section">
+            <div class="gallery-header">
+                <h2>Thư viện Media</h2>
+                <div class="gallery-controls">
+                    <button class="btn btn-secondary" id="clearAllBtn">Xóa tất cả</button>
+                    <button class="btn btn-primary" id="slideshowBtn">Chế độ trình chiếu</button>
+                </div>
+            </div>
+
+            <!-- Search and Filter Bar -->
+            <div class="filter-bar">
+                <div class="search-box">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                    <input type="text" id="searchInput" placeholder="Tìm kiếm media..." class="search-input">
+                </div>
+                <div class="category-filters" id="categoryFilters">
+                    <button class="category-filter active" data-category="all">Tất cả</button>
+                </div>
+            </div>
+
+            <div class="gallery-grid" id="galleryGrid">
+                <div class="empty-state">
+                    <p>Chưa có media nào. Hãy tải lên file đầu tiên!</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Slideshow Modal -->
+    <div class="slideshow-modal" id="slideshowModal">
+        <div class="slideshow-top-controls">
+            <button class="slideshow-close-btn" id="closeSlideshow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+
+            <button class="slideshow-settings-btn" id="slideshowSettingsBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </button>
+        </div>
+
+        <div class="slideshow-controls">
+            <button class="control-btn" id="prevBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+            <button class="control-btn" id="playPauseBtn">
+                <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16"></rect>
+                    <rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+            </button>
+            <button class="control-btn" id="nextBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </button>
+        </div>
+
+        <div class="slideshow-zoom-controls">
+            <button class="control-btn" id="zoomOutBtn" title="Thu nhỏ">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                    <line x1="8" y1="11" x2="14" y2="11"></line>
+                </svg>
+            </button>
+            <button class="control-btn" id="zoomResetBtn" title="Đặt lại zoom">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="16"></line>
+                    <line x1="8" y1="12" x2="16" y2="12"></line>
+                </svg>
+            </button>
+            <button class="control-btn" id="zoomInBtn" title="Phóng to">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                    <line x1="11" y1="8" x2="11" y2="14"></line>
+                    <line x1="8" y1="11" x2="14" y2="11"></line>
+                </svg>
+            </button>
+        </div>
+
+        <div class="slideshow-content" id="slideshowContent">
+            <!-- Media will be displayed here -->
+        </div>
+        <div class="slideshow-counter" id="slideshowCounter">1 / 1</div>
+
+        <!-- Settings Panel -->
+        <div class="slideshow-settings-panel" id="slideshowSettingsPanel">
+            <div class="settings-header">
+                <h4>Cài đặt trình chiếu</h4>
+            </div>
+            <div class="settings-body">
+                <div class="setting-item">
+                    <label>Hiệu ứng chuyển cảnh:</label>
+                    <select id="transitionEffect" class="setting-select">
+                        <option value="fade">Mờ dần (Fade)</option>
+                        <option value="slide">Trượt ngang (Slide)</option>
+                        <option value="zoom">Thu phóng (Zoom)</option>
+                        <option value="flip">Lật (Flip)</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>Thời gian chuyển slide:</label>
+                    <div class="slider-container">
+                        <input type="range" id="slideDuration" min="2" max="10" step="1" value="3" class="setting-slider">
+                        <span class="slider-value" id="slideDurationValue">3s</span>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label>Tốc độ hiệu ứng:</label>
+                    <div class="slider-container">
+                        <input type="range" id="transitionSpeed" min="300" max="1500" step="100" value="600" class="setting-slider">
+                        <span class="slider-value" id="transitionSpeedValue">0.6s</span>
+                    </div>
+                </div>
+                <div class="setting-item" id="videoLoopSetting" style="display: none;">
+                    <label>Số lần lặp video hiện tại:</label>
+                    <div class="slider-container">
+                        <input type="number" id="currentVideoLoopCount" min="1" max="100" value="1">
+                        <button id="saveVideoLoopBtn">Lưu</button>
+                    </div>
+                    <p>Số lần video này sẽ lặp lại (1-100 lần)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Management Modal -->
+    <div class="category-modal" id="categoryModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Quản lý Danh mục</h3>
+                <button class="close-modal-btn" id="closeCategoryModal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="add-category-form">
+                    <input type="text" id="newCategoryInput" placeholder="Tên danh mục mới..." class="modal-input">
+                    <button class="btn btn-primary" id="addCategoryBtn">Thêm</button>
+                </div>
+                <div class="categories-list" id="categoriesList">
+                    <!-- Categories will be listed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Management Modal -->
+    <div class="category-modal" id="userModal">
+        <div class="modal-content modal-content-lg">
+            <div class="modal-header">
+                <h3>Quản lý Người dùng</h3>
+                <button class="close-modal-btn" id="closeUserModal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="add-user-form">
+                    <input type="text" id="newUsername" placeholder="Tên đăng nhập..." class="modal-input">
+                    <input type="password" id="newUserPassword" placeholder="Mật khẩu..." class="modal-input">
+                    <select id="newUserRole" class="modal-input">
+                        <option value="user">Người dùng</option>
+                        <option value="admin">Quản trị viên</option>
+                    </select>
+                    <button class="btn btn-primary" id="addUserBtn">Thêm</button>
+                </div>
+                <div class="users-list" id="usersList">
+                    <!-- Users will be listed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="category-modal" id="changePasswordModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Đổi mật khẩu</h3>
+                <button class="close-modal-btn" id="closeChangePasswordModal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="changePasswordForm" class="change-password-form">
+                    <div class="form-group">
+                        <label for="currentPassword">Mật khẩu hiện tại:</label>
+                        <input type="password" id="currentPassword" class="modal-input" placeholder="Nhập mật khẩu hiện tại" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">Mật khẩu mới:</label>
+                        <input type="password" id="newPassword" class="modal-input" placeholder="Nhập mật khẩu mới" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Xác nhận mật khẩu mới:</label>
+                        <input type="password" id="confirmPassword" class="modal-input" placeholder="Nhập lại mật khẩu mới" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Đổi mật khẩu</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div class="category-modal" id="editUserModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Chỉnh sửa người dùng</h3>
+                <button class="close-modal-btn" id="closeEditUserModal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="editUserForm" class="edit-user-form">
+                    <input type="hidden" id="editUserId">
+                    <div class="form-group">
+                        <label for="editUsername">Tên đăng nhập:</label>
+                        <input type="text" id="editUsername" class="modal-input" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label for="editUserRole">Vai trò:</label>
+                        <select id="editUserRole" class="modal-input">
+                            <option value="user">Người dùng</option>
+                            <option value="admin">Quản trị viên</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editUserPassword">Mật khẩu mới (để trống nếu không đổi):</label>
+                        <input type="password" id="editUserPassword" class="modal-input" placeholder="Nhập mật khẩu mới">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Lưu thay đổi</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="db.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
