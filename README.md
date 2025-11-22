@@ -1,29 +1,51 @@
 # VSBTek MediaCast
 
-Hệ thống quản lý và trình chiếu media chuyên nghiệp.
+Hệ thống quản lý và trình chiếu media cho TV/màn hình hiển thị.
 
-## Tính năng chính
+## Tính năng
 
-- **Quản lý Media** - Upload, xem, xóa hình ảnh và video
-- **Phân loại** - Tổ chức media theo danh mục tùy chỉnh
-- **Slideshow** - Trình chiếu tự động với cấu hình số lần lặp video
-- **Đa người dùng** - Hệ thống xác thực với phân quyền Admin/User
-- **Quản lý tài khoản** - Admin có thể thêm/sửa/xóa người dùng
-- **Đổi mật khẩu** - Mỗi người dùng tự đổi mật khẩu của mình
+- Upload và quản lý hình ảnh/video
+- Phân loại media theo danh mục
+- Slideshow tự động với cấu hình loop video
+- Xác thực đa người dùng (Admin/User)
+- Chia sẻ link slideshow cho TV
 
-## Công nghệ
+## Cài đặt
 
-- Vanilla JavaScript (không framework)
-- IndexedDB lưu trữ client-side
-- SHA-256 mã hóa mật khẩu
-- Responsive design
+### Chạy với Docker (khuyến nghị)
+
+```bash
+docker compose up -d
+```
+
+Truy cập: `http://localhost:3000`
+
+### Chạy trực tiếp
+
+```bash
+node server.js
+```
 
 ## Sử dụng
 
-```bash
-npm start
+1. Truy cập `http://localhost:3000`
+2. Lần đầu: nhập username/password để tạo tài khoản admin
+3. Upload media và tổ chức theo danh mục
+4. Chia sẻ link slideshow cho TV: `http://<IP>:3000/slideshow.html`
+
+## Cấu trúc
+
+```text
+├── server.js        # Backend Node.js
+├── index.html       # Trang quản lý
+├── slideshow.html   # Trang trình chiếu (cho TV)
+├── api.js           # API client
+├── app.js           # Logic ứng dụng
+├── db.js            # IndexedDB manager
+├── uploads/         # Thư mục chứa media (tự tạo)
+└── data.json        # Dữ liệu ứng dụng (tự tạo)
 ```
 
-Hoặc mở trực tiếp `index.html` trong trình duyệt.
+## License
 
-**Lần đầu:** Nhập username/password để tạo tài khoản admin.
+MIT
