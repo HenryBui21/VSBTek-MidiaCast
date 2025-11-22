@@ -165,7 +165,7 @@ header {
 .clickable-logo {
     cursor: pointer;
     transition: transform 0.2s ease, filter 0.2s ease;
-    height: 50px;
+    height: 60px;
     width: auto;
     object-fit: contain;
     display: block;
