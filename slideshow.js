@@ -18,14 +18,27 @@ class SlideshowPlayer {
         this.slideshowInterval = null;
         this.controlsTimeout = null;
 
+        // Server mode - will be determined after checking API availability
+        this.useServer = false;
+
         this.init();
     }
 
     async init() {
         try {
-            await this.db.init();
-            await this.loadMedia();
-            await this.loadSettings();
+            // Check if API server is available
+            if (typeof api !== 'undefined') {
+                this.useServer = await api.checkAvailability();
+            }
+
+            if (this.useServer) {
+                // Server mode - load from API
+                await this.loadFromServer();
+            } else {
+                await this.db.init();
+                await this.loadMedia();
+                await this.loadSettings();
+            }
 
             if (this.mediaItems.length > 0) {
                 this.hideLoading();
@@ -35,12 +48,39 @@ class SlideshowPlayer {
                 this.showEmptyState();
             }
 
-            // Auto-refresh media every 30 seconds to sync with main app
+            // Auto-refresh media every 30 seconds to sync
             setInterval(() => this.refreshMedia(), 30000);
 
         } catch (error) {
             console.error('Lỗi khởi tạo slideshow:', error);
             this.showEmptyState();
+        }
+    }
+
+    async loadFromServer() {
+        try {
+            this.mediaItems = await api.getAllMedia();
+
+            // Get category filter from URL if provided
+            const urlParams = new URLSearchParams(window.location.search);
+            const category = urlParams.get('category');
+
+            if (category && category !== 'all') {
+                this.mediaItems = this.mediaItems.filter(item => item.category === category);
+            }
+
+            // Sort by upload date
+            this.mediaItems.sort((a, b) => new Date(a.uploadedAt) - new Date(b.uploadedAt));
+
+            // Load settings
+            const settings = await api.getSettings();
+            if (settings) {
+                if (settings.slideDuration) this.slideshowSettings.slideDuration = settings.slideDuration;
+                if (settings.transitionEffect) this.slideshowSettings.transitionEffect = settings.transitionEffect;
+                if (settings.transitionSpeed) this.slideshowSettings.transitionSpeed = settings.transitionSpeed;
+            }
+        } catch (e) {
+            console.error('Lỗi tải từ server:', e);
         }
     }
 
@@ -253,7 +293,12 @@ class SlideshowPlayer {
 
     async refreshMedia() {
         const previousCount = this.mediaItems.length;
-        await this.loadMedia();
+
+        if (this.useServer) {
+            await this.loadFromServer();
+        } else {
+            await this.loadMedia();
+        }
 
         // If media changed, update display
         if (this.mediaItems.length !== previousCount) {
@@ -263,6 +308,7 @@ class SlideshowPlayer {
             } else if (previousCount === 0) {
                 this.hideEmptyState();
                 this.hideLoading();
+                this.initControls();
                 this.startSlideshow();
             } else {
                 // Adjust current index if needed
@@ -340,15 +386,22 @@ class SlideshowPlayer {
         const media = this.mediaItems[index];
         const slideContainer = document.getElementById('currentSlide');
 
-        // Clean up previous blob URL
-        this.cleanupCurrentSlide();
+        // Clean up previous blob URL (only for local mode)
+        if (!this.useServer) {
+            this.cleanupCurrentSlide();
+        }
 
         // Reset zoom
         this.currentZoom = 1;
 
-        // Create blob URL for media
-        const blobURL = this.db.createBlobURL(media.blob);
-        this.blobURLs.set(media.id, blobURL);
+        // Get media URL
+        let blobURL;
+        if (this.useServer) {
+            blobURL = api.getMediaURL(media);
+        } else {
+            blobURL = this.db.createBlobURL(media.blob);
+            this.blobURLs.set(media.id, blobURL);
+        }
 
         // Apply transition effect
         this.applyTransitionEffect(slideContainer, 'out');

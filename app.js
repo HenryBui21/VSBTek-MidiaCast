@@ -17,6 +17,11 @@ class MediaCast {
         this.currentUser = null; // Current logged in user
         this.isInitialized = false; // Flag to prevent multiple initializations
 
+        // Server mode - will be determined after checking API availability
+        this.useServer = false;
+        this.isAuthReady = false; // Flag to indicate auth system is ready
+        this.initAuthPromise = null; // Promise for initAuth completion
+
         // Slideshow settings
         this.slideshowSettings = {
             transitionEffect: 'fade',
@@ -24,14 +29,27 @@ class MediaCast {
             transitionSpeed: 600 // milliseconds
         };
 
-        this.initAuth();
+        // Setup listeners first, then start auth initialization
+        this.setupAuthListeners();
+        this.initAuthPromise = this.initAuth();
     }
 
     async initApp() {
         try {
-            await this.db.init();
-            await this.migrateFromLocalStorage();
-            await this.loadFromStorage();
+            // Check if API server is available
+            if (typeof api !== 'undefined') {
+                this.useServer = await api.checkAvailability();
+            }
+
+            if (this.useServer) {
+                // Server mode - load from API
+                await this.loadFromServer();
+            } else {
+                // Local mode - use IndexedDB
+                await this.db.init();
+                await this.migrateFromLocalStorage();
+                await this.loadFromStorage();
+            }
 
             // Only initialize event listeners once
             if (!this.isInitialized) {
@@ -45,6 +63,19 @@ class MediaCast {
         } catch (error) {
             console.error('Lỗi khi khởi tạo ứng dụng:', error);
             alert('Có lỗi khi khởi động ứng dụng. Vui lòng thử lại!');
+        }
+    }
+
+    async loadFromServer() {
+        try {
+            this.mediaItems = await api.getAllMedia();
+            this.categories = await api.getCategories();
+            const settings = await api.getSettings();
+            if (settings) {
+                this.slideshowSettings = { ...this.slideshowSettings, ...settings };
+            }
+        } catch (e) {
+            console.error('Lỗi khi tải từ server:', e);
         }
     }
 
@@ -249,19 +280,26 @@ class MediaCast {
             }
 
             try {
-                const mediaItem = {
-                    id: Date.now() + Math.random(),
-                    name: file.name,
-                    type: file.type.startsWith('image') ? 'image' : 'video',
-                    category: selectedCategory,
-                    blob: file, // Store the actual file as blob
-                    mimeType: file.type,
-                    uploadedAt: new Date().toISOString(),
-                    videoLoopCount: 1 // Default: play once (1 loop)
-                };
+                if (this.useServer) {
+                    // Upload to server
+                    await api.uploadMedia(file, selectedCategory);
+                    await this.loadFromServer();
+                } else {
+                    // Local IndexedDB
+                    const mediaItem = {
+                        id: Date.now() + Math.random(),
+                        name: file.name,
+                        type: file.type.startsWith('image') ? 'image' : 'video',
+                        category: selectedCategory,
+                        blob: file,
+                        mimeType: file.type,
+                        uploadedAt: new Date().toISOString(),
+                        videoLoopCount: 1
+                    };
 
-                await this.db.addMedia(mediaItem);
-                await this.loadFromStorage();
+                    await this.db.addMedia(mediaItem);
+                    await this.loadFromStorage();
+                }
                 this.renderGallery();
             } catch (error) {
                 console.error('Lỗi khi thêm media:', error);
@@ -332,8 +370,12 @@ class MediaCast {
             return;
         }
 
-        this.categories.push(categoryName);
-        await this.saveCategories();
+        if (this.useServer) {
+            this.categories = await api.addCategory(categoryName);
+        } else {
+            this.categories.push(categoryName);
+            await this.saveCategories();
+        }
         this.renderCategorySelect();
         this.renderCategoryFilters();
         this.renderCategoriesList();
@@ -351,7 +393,12 @@ class MediaCast {
             if (!confirm(`Có ${itemsInCategory.length} media trong danh mục này. Chuyển sang danh mục "Chung"?`)) {
                 return;
             }
+        }
 
+        if (this.useServer) {
+            this.categories = await api.deleteCategory(categoryName);
+            await this.loadFromServer();
+        } else {
             // Move items to "Chung"
             for (const item of this.mediaItems) {
                 if (item.category === categoryName) {
@@ -359,11 +406,10 @@ class MediaCast {
                     await this.db.updateMedia(item);
                 }
             }
+            this.categories = this.categories.filter(cat => cat !== categoryName);
+            await this.saveCategories();
+            await this.loadFromStorage();
         }
-
-        this.categories = this.categories.filter(cat => cat !== categoryName);
-        await this.saveCategories();
-        await this.loadFromStorage();
         this.renderCategorySelect();
         this.renderCategoryFilters();
         this.renderCategoriesList();
@@ -373,9 +419,11 @@ class MediaCast {
     renderGallery() {
         const galleryGrid = document.getElementById('galleryGrid');
 
-        // Clean up old blob URLs
-        this.blobURLs.forEach(url => URL.revokeObjectURL(url));
-        this.blobURLs.clear();
+        // Clean up old blob URLs (only for local mode)
+        if (!this.useServer) {
+            this.blobURLs.forEach(url => URL.revokeObjectURL(url));
+            this.blobURLs.clear();
+        }
 
         // Filter items based on category and search
         let filteredItems = this.mediaItems;
@@ -407,14 +455,24 @@ class MediaCast {
 
         galleryGrid.innerHTML = filteredItems.map((item) => {
             const originalIndex = this.mediaItems.indexOf(item);
-            const blobURL = URL.createObjectURL(item.blob);
-            this.blobURLs.set(item.id, blobURL);
+            let mediaURL;
+
+            if (this.useServer) {
+                // Server mode - use URL from server
+                mediaURL = api.getMediaURL(item);
+            } else {
+                // Local mode - create blob URL
+                mediaURL = URL.createObjectURL(item.blob);
+                this.blobURLs.set(item.id, mediaURL);
+            }
+
+            const itemId = this.useServer ? `'${item.id}'` : item.id;
 
             return `
                 <div class="media-item" data-id="${item.id}" onclick="mediaApp.viewMedia(${originalIndex})">
                     ${item.type === 'image'
-                        ? `<img src="${blobURL}" alt="${item.name}">`
-                        : `<video src="${blobURL}" muted></video>`
+                        ? `<img src="${mediaURL}" alt="${item.name}">`
+                        : `<video src="${mediaURL}" muted></video>`
                     }
                     <div class="media-item-overlay">
                         <div class="media-item-info">
@@ -423,7 +481,7 @@ class MediaCast {
                         </div>
                     </div>
                     <div class="media-item-actions">
-                        <button class="delete-btn" onclick="event.stopPropagation(); mediaApp.deleteMedia(${item.id})">
+                        <button class="delete-btn" onclick="event.stopPropagation(); mediaApp.deleteMedia(${itemId})">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -437,8 +495,13 @@ class MediaCast {
 
     async deleteMedia(id) {
         try {
-            await this.db.deleteMedia(id);
-            await this.loadFromStorage();
+            if (this.useServer) {
+                await api.deleteMedia(id);
+                await this.loadFromServer();
+            } else {
+                await this.db.deleteMedia(id);
+                await this.loadFromStorage();
+            }
             this.renderGallery();
             this.renderCategoryFilters();
         } catch (error) {
@@ -449,8 +512,13 @@ class MediaCast {
 
     async clearAll() {
         try {
-            await this.db.clearAllMedia();
-            await this.loadFromStorage();
+            if (this.useServer) {
+                await api.clearAllMedia();
+                await this.loadFromServer();
+            } else {
+                await this.db.clearAllMedia();
+                await this.loadFromStorage();
+            }
             this.renderGallery();
             this.renderCategoryFilters();
         } catch (error) {
@@ -549,11 +617,17 @@ class MediaCast {
         // Show/hide video loop setting
         this.updateVideoLoopSettingVisibility();
 
-        // Reuse cached blob URL if available, otherwise create new one
-        let blobURL = this.blobURLs.get(item.id);
-        if (!blobURL) {
-            blobURL = URL.createObjectURL(item.blob);
-            this.blobURLs.set(item.id, blobURL);
+        // Get media URL
+        let blobURL;
+        if (this.useServer) {
+            blobURL = api.getMediaURL(item);
+        } else {
+            // Reuse cached blob URL if available, otherwise create new one
+            blobURL = this.blobURLs.get(item.id);
+            if (!blobURL) {
+                blobURL = URL.createObjectURL(item.blob);
+                this.blobURLs.set(item.id, blobURL);
+            }
         }
 
         // Update counter
@@ -765,7 +839,11 @@ class MediaCast {
 
     async saveSettings() {
         try {
-            await this.db.saveSetting('slideshow_settings', this.slideshowSettings);
+            if (this.useServer) {
+                await api.updateSettings(this.slideshowSettings);
+            } else {
+                await this.db.saveSetting('slideshow_settings', this.slideshowSettings);
+            }
         } catch (e) {
             console.error('Lỗi khi lưu settings:', e);
         }
@@ -838,15 +916,38 @@ class MediaCast {
 
     // Authentication methods
     async initAuth() {
-        await this.db.init();
-        await this.checkUsersExist();
-        await this.checkAuth();
-        this.setupAuthListeners();
+        try {
+            // Check if API server is available first
+            if (typeof api !== 'undefined') {
+                this.useServer = await api.checkAvailability();
+            }
+
+            if (!this.useServer) {
+                await this.db.init();
+            }
+
+            this.isAuthReady = true; // Mark auth system as ready
+            await this.checkUsersExist();
+            await this.checkAuth();
+        } catch (error) {
+            console.error('Lỗi khởi tạo auth:', error);
+            this.isAuthReady = true; // Still mark as ready so user can try again
+            this.showLoginModal();
+        }
     }
 
     async checkUsersExist() {
         // Check if any users exist, update login hint accordingly
-        const usersCount = await this.db.getUsersCount();
+        let usersCount;
+        if (this.useServer) {
+            usersCount = await api.getUsersCount();
+        } else {
+            // Ensure db is initialized
+            if (!this.db.db) {
+                await this.db.init();
+            }
+            usersCount = await this.db.getUsersCount();
+        }
         const loginHint = document.getElementById('loginHint');
         if (usersCount === 0) {
             loginHint.textContent = 'Lần đầu sử dụng? Nhập thông tin để tạo tài khoản admin.';
@@ -861,7 +962,24 @@ class MediaCast {
         const sessionUserId = sessionStorage.getItem('mediacast_user_id');
 
         if (sessionAuth === 'true' && sessionUserId) {
-            const user = await this.db.getUserById(parseInt(sessionUserId));
+            let user = null;
+            if (this.useServer) {
+                // Server mode - get user from API
+                try {
+                    const users = await api.getAllUsers();
+                    user = users.find(u => u.id === sessionUserId);
+                } catch (e) {
+                    console.error('Lỗi khi lấy user từ server:', e);
+                }
+            } else {
+                // Local mode - get user from IndexedDB
+                // Ensure db is initialized
+                if (!this.db.db) {
+                    await this.db.init();
+                }
+                user = await this.db.getUserById(parseInt(sessionUserId));
+            }
+
             if (user) {
                 this.isAuthenticated = true;
                 this.currentUser = user;
@@ -957,39 +1075,73 @@ class MediaCast {
             return;
         }
 
+        // Wait for auth system to be ready
+        if (!this.isAuthReady) {
+            if (this.initAuthPromise) {
+                await this.initAuthPromise;
+            }
+            if (!this.isAuthReady) {
+                alert('Hệ thống đang khởi tạo, vui lòng đợi...');
+                return;
+            }
+        }
+
         try {
-            // Check if any users exist
-            const usersCount = await this.db.getUsersCount();
+            const passwordHash = await this.hashPassword(password);
 
-            if (usersCount === 0) {
-                // First time setup - create admin user
-                const passwordHash = await this.hashPassword(password);
-                const newUser = {
-                    username: username,
-                    passwordHash: passwordHash,
-                    role: 'admin',
-                    createdAt: new Date().toISOString()
-                };
-                await this.db.addUser(newUser);
-                const user = await this.db.getUserByUsername(username);
-                this.authenticateUser(user);
-                alert('Tài khoản admin đã được tạo thành công!');
-            } else {
-                // Verify credentials
-                const user = await this.db.getUserByUsername(username);
-                if (!user) {
-                    alert('Tên đăng nhập không tồn tại!');
-                    usernameInput.focus();
-                    return;
-                }
-
-                const passwordHash = await this.hashPassword(password);
-                if (passwordHash === user.passwordHash) {
-                    this.authenticateUser(user);
+            if (this.useServer) {
+                // Server mode - use API
+                const result = await api.login(username, passwordHash);
+                if (result.success) {
+                    this.authenticateUser(result.user);
+                    if (result.isNewUser) {
+                        alert('Tài khoản admin đã được tạo thành công!');
+                    }
                 } else {
-                    alert('Mật khẩu không đúng!');
-                    passwordInput.value = '';
-                    passwordInput.focus();
+                    alert(result.error || 'Đăng nhập thất bại!');
+                    if (result.error === 'Tên đăng nhập không tồn tại!') {
+                        usernameInput.focus();
+                    } else {
+                        passwordInput.value = '';
+                        passwordInput.focus();
+                    }
+                }
+            } else {
+                // Local mode - use IndexedDB
+                // Ensure db is initialized
+                if (!this.db.db) {
+                    await this.db.init();
+                }
+                const usersCount = await this.db.getUsersCount();
+
+                if (usersCount === 0) {
+                    // First time setup - create admin user
+                    const newUser = {
+                        username: username,
+                        passwordHash: passwordHash,
+                        role: 'admin',
+                        createdAt: new Date().toISOString()
+                    };
+                    await this.db.addUser(newUser);
+                    const user = await this.db.getUserByUsername(username);
+                    this.authenticateUser(user);
+                    alert('Tài khoản admin đã được tạo thành công!');
+                } else {
+                    // Verify credentials
+                    const user = await this.db.getUserByUsername(username);
+                    if (!user) {
+                        alert('Tên đăng nhập không tồn tại!');
+                        usernameInput.focus();
+                        return;
+                    }
+
+                    if (passwordHash === user.passwordHash) {
+                        this.authenticateUser(user);
+                    } else {
+                        alert('Mật khẩu không đúng!');
+                        passwordInput.value = '';
+                        passwordInput.focus();
+                    }
                 }
             }
         } catch (error) {
@@ -1386,7 +1538,6 @@ class MediaCast {
             const storedCategories = localStorage.getItem('mediacast_categories');
 
             if (storedItems) {
-                console.log('Migrating data from LocalStorage to IndexedDB...');
                 const items = JSON.parse(storedItems);
 
                 for (const item of items) {
@@ -1408,14 +1559,11 @@ class MediaCast {
                         await this.db.addMedia(newItem);
                     }
                 }
-
-                console.log('Media migration completed!');
             }
 
             if (storedCategories) {
                 const categories = JSON.parse(storedCategories);
                 await this.db.saveCategories(categories);
-                console.log('Categories migration completed!');
             }
 
             // Mark migration as complete

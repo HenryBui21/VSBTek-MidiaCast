@@ -18,7 +18,6 @@ class DatabaseManager {
 
             request.onsuccess = () => {
                 this.db = request.result;
-                console.log('Database đã được khởi tạo thành công');
                 resolve(this.db);
             };
 

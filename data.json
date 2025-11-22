@@ -1,0 +1,82 @@
+{
+  "media": [
+    {
+      "id": "mi9z3qwpkf5xyxuvyc",
+      "name": "B550M Pro SE(L1).png",
+      "type": "image",
+      "category": "Sản phẩm",
+      "mimeType": "image/png",
+      "filename": "mi9z3qwpkf5xyxuvyc.png",
+      "url": "/uploads/mi9z3qwpkf5xyxuvyc.png",
+      "uploadedAt": "2025-11-22T07:34:09.153Z",
+      "loopCount": 1
+    },
+    {
+      "id": "mi9z3qzheg4y59hmbva",
+      "name": "xigmatek-xa-22-en47567.png",
+      "type": "image",
+      "category": "Sản phẩm",
+      "mimeType": "image/png",
+      "filename": "mi9z3qzheg4y59hmbva.png",
+      "url": "/uploads/mi9z3qzheg4y59hmbva.png",
+      "uploadedAt": "2025-11-22T07:34:09.247Z",
+      "loopCount": 1
+    },
+    {
+      "id": "mi9z3r0v0ffe53zfv60e",
+      "name": "DELL-Precision-7520-Mobile-Workstation-H2.png",
+      "type": "image",
+      "category": "Sản phẩm",
+      "mimeType": "image/png",
+      "filename": "mi9z3r0v0ffe53zfv60e.png",
+      "url": "/uploads/mi9z3r0v0ffe53zfv60e.png",
+      "uploadedAt": "2025-11-22T07:34:09.307Z",
+      "loopCount": 1
+    },
+    {
+      "id": "mi9z3r2ghyy0vmud7hv",
+      "name": "xiaomi-poco-x6-pro.png",
+      "type": "image",
+      "category": "Sản phẩm",
+      "mimeType": "image/png",
+      "filename": "mi9z3r2ghyy0vmud7hv.png",
+      "url": "/uploads/mi9z3r2ghyy0vmud7hv.png",
+      "uploadedAt": "2025-11-22T07:34:09.353Z",
+      "loopCount": 1
+    },
+    {
+      "id": "mi9z3r3yc3wnm07yd5",
+      "name": "ThinkPad-T495.png",
+      "type": "image",
+      "category": "Sản phẩm",
+      "mimeType": "image/png",
+      "filename": "mi9z3r3yc3wnm07yd5.png",
+      "url": "/uploads/mi9z3r3yc3wnm07yd5.png",
+      "uploadedAt": "2025-11-22T07:34:09.409Z",
+      "loopCount": 1
+    },
+    {
+      "id": "mi9z3w8r8og9ja5n7f2",
+      "name": "Welcome_SISIKU.png",
+      "type": "image",
+      "category": "Sự kiện",
+      "mimeType": "image/png",
+      "filename": "mi9z3w8r8og9ja5n7f2.png",
+      "url": "/uploads/mi9z3w8r8og9ja5n7f2.png",
+      "uploadedAt": "2025-11-22T07:34:16.062Z",
+      "loopCount": 1
+    }
+  ],
+  "categories": [
+    "Chung",
+    "Sản phẩm",
+    "Sự kiện",
+    "Khuyến mãi"
+  ],
+  "settings": {
+    "slideDuration": 3000,
+    "transitionEffect": "fade",
+    "transitionSpeed": 600
+  },
+  "users": []
+}
