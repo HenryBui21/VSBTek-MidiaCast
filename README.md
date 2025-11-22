@@ -1,29 +1,29 @@
-# VSBTek-MediaCast
+# VSBTek MediaCast
 
-Hệ thống quản lý và trình chiếu media cho quảng bá sản phẩm và sự kiện.
+Hệ thống quản lý và trình chiếu media chuyên nghiệp.
 
-## Tính năng
+## Tính năng chính
 
-- Upload file media (hình ảnh, video)
-- Quản lý thư viện media với danh mục
-- Tìm kiếm và lọc media
-- Chế độ trình chiếu slideshow với hiệu ứng chuyển cảnh
-- Giao diện responsive, hiện đại
-
-## Cách sử dụng
-
-1. Mở [index.html](index.html) trong trình duyệt
-2. Hoặc chạy: `npm start` để khởi động local server
+- **Quản lý Media** - Upload, xem, xóa hình ảnh và video
+- **Phân loại** - Tổ chức media theo danh mục tùy chỉnh
+- **Slideshow** - Trình chiếu tự động với cấu hình số lần lặp video
+- **Đa người dùng** - Hệ thống xác thực với phân quyền Admin/User
+- **Quản lý tài khoản** - Admin có thể thêm/sửa/xóa người dùng
+- **Đổi mật khẩu** - Mỗi người dùng tự đổi mật khẩu của mình
 
 ## Công nghệ
 
-- HTML5, CSS3, JavaScript (Vanilla)
-- **IndexedDB** để lưu trữ dữ liệu (dung lượng lớn, tốc độ nhanh)
-- Lưu trữ file dạng Blob (tiết kiệm ~33% so với Base64)
+- Vanilla JavaScript (không framework)
+- IndexedDB lưu trữ client-side
+- SHA-256 mã hóa mật khẩu
 - Responsive design
-- Auto-migration từ LocalStorage (nếu có dữ liệu cũ)
 
-## Dung lượng lưu trữ
+## Sử dụng
 
-- IndexedDB: ~50MB - vài GB (tùy trình duyệt)
-- Phù hợp cho server nội bộ với hàng trăm/ngàn media files
+```bash
+npm start
+```
+
+Hoặc mở trực tiếp `index.html` trong trình duyệt.
+
+**Lần đầu:** Nhập username/password để tạo tài khoản admin.
