@@ -13,7 +13,13 @@ class SlideshowPlayer {
         this.slideshowSettings = {
             slideDuration: 3000,
             transitionSpeed: 600,
-            transitionEffect: 'fade'
+            transitionEffect: 'fade',
+            playOrder: 'sequential',
+            loopSlideshow: true,
+            imageFit: 'contain',
+            backgroundColor: '#000000',
+            showCounter: true,
+            showControls: true
         };
         this.slideshowInterval = null;
         this.controlsTimeout = null;
@@ -78,6 +84,12 @@ class SlideshowPlayer {
                 if (settings.slideDuration) this.slideshowSettings.slideDuration = settings.slideDuration;
                 if (settings.transitionEffect) this.slideshowSettings.transitionEffect = settings.transitionEffect;
                 if (settings.transitionSpeed) this.slideshowSettings.transitionSpeed = settings.transitionSpeed;
+                if (settings.playOrder) this.slideshowSettings.playOrder = settings.playOrder;
+                if (settings.loopSlideshow !== undefined) this.slideshowSettings.loopSlideshow = settings.loopSlideshow;
+                if (settings.imageFit) this.slideshowSettings.imageFit = settings.imageFit;
+                if (settings.backgroundColor) this.slideshowSettings.backgroundColor = settings.backgroundColor;
+                if (settings.showCounter !== undefined) this.slideshowSettings.showCounter = settings.showCounter;
+                if (settings.showControls !== undefined) this.slideshowSettings.showControls = settings.showControls;
             }
         } catch (e) {
             console.error('Lỗi tải từ server:', e);
@@ -156,6 +168,48 @@ class SlideshowPlayer {
             this.saveCurrentVideoLoop();
         });
 
+        // New settings controls
+        const playOrder = document.getElementById('playOrder');
+        const loopSlideshow = document.getElementById('loopSlideshow');
+        const imageFit = document.getElementById('imageFit');
+        const backgroundColor = document.getElementById('backgroundColor');
+        const showCounter = document.getElementById('showCounter');
+        const showControls = document.getElementById('showControls');
+
+        playOrder.addEventListener('change', (e) => {
+            this.slideshowSettings.playOrder = e.target.value;
+            this.saveSettings();
+        });
+
+        loopSlideshow.addEventListener('change', (e) => {
+            this.slideshowSettings.loopSlideshow = e.target.checked;
+            this.saveSettings();
+        });
+
+        imageFit.addEventListener('change', (e) => {
+            this.slideshowSettings.imageFit = e.target.value;
+            this.applyImageFit();
+            this.saveSettings();
+        });
+
+        backgroundColor.addEventListener('input', (e) => {
+            this.slideshowSettings.backgroundColor = e.target.value;
+            this.applyBackgroundColor();
+            this.saveSettings();
+        });
+
+        showCounter.addEventListener('change', (e) => {
+            this.slideshowSettings.showCounter = e.target.checked;
+            this.applyShowCounter();
+            this.saveSettings();
+        });
+
+        showControls.addEventListener('change', (e) => {
+            this.slideshowSettings.showControls = e.target.checked;
+            this.applyShowControls();
+            this.saveSettings();
+        });
+
         // Close settings panel when clicking outside
         document.addEventListener('click', (e) => {
             if (!settingsPanel.contains(e.target) && !settingsBtn.contains(e.target)) {
@@ -203,19 +257,68 @@ class SlideshowPlayer {
         const slideDurationValue = document.getElementById('slideDurationValue');
         const transitionSpeed = document.getElementById('transitionSpeed');
         const transitionSpeedValue = document.getElementById('transitionSpeedValue');
+        const playOrder = document.getElementById('playOrder');
+        const loopSlideshow = document.getElementById('loopSlideshow');
+        const imageFit = document.getElementById('imageFit');
+        const backgroundColor = document.getElementById('backgroundColor');
+        const showCounter = document.getElementById('showCounter');
+        const showControls = document.getElementById('showControls');
 
         transitionEffect.value = this.slideshowSettings.transitionEffect;
         slideDuration.value = this.slideshowSettings.slideDuration / 1000;
         slideDurationValue.textContent = `${this.slideshowSettings.slideDuration / 1000}s`;
         transitionSpeed.value = this.slideshowSettings.transitionSpeed;
         transitionSpeedValue.textContent = `${(this.slideshowSettings.transitionSpeed / 1000).toFixed(1)}s`;
+        playOrder.value = this.slideshowSettings.playOrder;
+        loopSlideshow.checked = this.slideshowSettings.loopSlideshow;
+        imageFit.value = this.slideshowSettings.imageFit;
+        backgroundColor.value = this.slideshowSettings.backgroundColor;
+        showCounter.checked = this.slideshowSettings.showCounter;
+        showControls.checked = this.slideshowSettings.showControls;
 
         this.applyTransitionSpeed();
+        this.applyImageFit();
+        this.applyBackgroundColor();
+        this.applyShowCounter();
+        this.applyShowControls();
     }
 
     applyTransitionSpeed() {
         const slide = document.getElementById('currentSlide');
         slide.style.setProperty('--transition-speed', `${this.slideshowSettings.transitionSpeed}ms`);
+    }
+
+    applyImageFit() {
+        const slide = document.getElementById('currentSlide');
+        const media = slide.querySelector('img, video');
+        if (media) {
+            media.style.objectFit = this.slideshowSettings.imageFit;
+        }
+    }
+
+    applyBackgroundColor() {
+        const container = document.getElementById('slideshowContainer');
+        container.style.backgroundColor = this.slideshowSettings.backgroundColor;
+    }
+
+    applyShowCounter() {
+        const info = document.getElementById('slideshowInfo');
+        info.style.display = this.slideshowSettings.showCounter ? 'block' : 'none';
+    }
+
+    applyShowControls() {
+        const controls = document.getElementById('slideshowControls');
+        const zoomControls = document.getElementById('zoomControls');
+        // Keep settings button always visible so user can re-enable controls
+        // const settingsBtn = document.getElementById('slideshowSettingsBtn');
+
+        if (!this.slideshowSettings.showControls) {
+            controls.style.display = 'none';
+            zoomControls.style.display = 'none';
+        } else {
+            controls.style.display = '';
+            zoomControls.style.display = '';
+        }
     }
 
     showControls() {
@@ -276,6 +379,36 @@ class SlideshowPlayer {
             if (transitionSpeed) {
                 this.slideshowSettings.transitionSpeed = transitionSpeed;
             }
+
+            const playOrder = await this.db.getSetting('playOrder');
+            if (playOrder) {
+                this.slideshowSettings.playOrder = playOrder;
+            }
+
+            const loopSlideshow = await this.db.getSetting('loopSlideshow');
+            if (loopSlideshow !== null && loopSlideshow !== undefined) {
+                this.slideshowSettings.loopSlideshow = loopSlideshow;
+            }
+
+            const imageFit = await this.db.getSetting('imageFit');
+            if (imageFit) {
+                this.slideshowSettings.imageFit = imageFit;
+            }
+
+            const backgroundColor = await this.db.getSetting('backgroundColor');
+            if (backgroundColor) {
+                this.slideshowSettings.backgroundColor = backgroundColor;
+            }
+
+            const showCounter = await this.db.getSetting('showCounter');
+            if (showCounter !== null && showCounter !== undefined) {
+                this.slideshowSettings.showCounter = showCounter;
+            }
+
+            const showControls = await this.db.getSetting('showControls');
+            if (showControls !== null && showControls !== undefined) {
+                this.slideshowSettings.showControls = showControls;
+            }
         } catch (e) {
             console.log('Sử dụng cài đặt mặc định');
         }
@@ -288,13 +421,25 @@ class SlideshowPlayer {
                 await api.updateSettings({
                     slideDuration: this.slideshowSettings.slideDuration,
                     transitionEffect: this.slideshowSettings.transitionEffect,
-                    transitionSpeed: this.slideshowSettings.transitionSpeed
+                    transitionSpeed: this.slideshowSettings.transitionSpeed,
+                    playOrder: this.slideshowSettings.playOrder,
+                    loopSlideshow: this.slideshowSettings.loopSlideshow,
+                    imageFit: this.slideshowSettings.imageFit,
+                    backgroundColor: this.slideshowSettings.backgroundColor,
+                    showCounter: this.slideshowSettings.showCounter,
+                    showControls: this.slideshowSettings.showControls
                 });
             } else {
                 // Local mode - save to IndexedDB
                 await this.db.saveSetting('slideDuration', this.slideshowSettings.slideDuration);
                 await this.db.saveSetting('transitionEffect', this.slideshowSettings.transitionEffect);
                 await this.db.saveSetting('transitionSpeed', this.slideshowSettings.transitionSpeed);
+                await this.db.saveSetting('playOrder', this.slideshowSettings.playOrder);
+                await this.db.saveSetting('loopSlideshow', this.slideshowSettings.loopSlideshow);
+                await this.db.saveSetting('imageFit', this.slideshowSettings.imageFit);
+                await this.db.saveSetting('backgroundColor', this.slideshowSettings.backgroundColor);
+                await this.db.saveSetting('showCounter', this.slideshowSettings.showCounter);
+                await this.db.saveSetting('showControls', this.slideshowSettings.showControls);
             }
         } catch (e) {
             console.log('Không thể lưu cài đặt:', e);
@@ -432,7 +577,14 @@ class SlideshowPlayer {
         const effect = this.slideshowSettings.transitionEffect;
 
         // Remove all transition classes
-        container.classList.remove('fade-in', 'fade-out', 'slide-in-right', 'slide-out-left', 'zoom-in', 'zoom-out');
+        container.classList.remove(
+            'fade-in', 'fade-out',
+            'slide-in-right', 'slide-out-left',
+            'zoom-in', 'zoom-out',
+            'flip-in', 'flip-out',
+            'blur-in', 'blur-out',
+            'rotate-in', 'rotate-out'
+        );
 
         if (direction === 'out') {
             switch (effect) {
@@ -444,6 +596,15 @@ class SlideshowPlayer {
                     break;
                 case 'zoom':
                     container.classList.add('zoom-out');
+                    break;
+                case 'flip':
+                    container.classList.add('flip-out');
+                    break;
+                case 'blur':
+                    container.classList.add('blur-out');
+                    break;
+                case 'rotate':
+                    container.classList.add('rotate-out');
                     break;
             }
         } else {
@@ -457,12 +618,22 @@ class SlideshowPlayer {
                 case 'zoom':
                     container.classList.add('zoom-in');
                     break;
+                case 'flip':
+                    container.classList.add('flip-in');
+                    break;
+                case 'blur':
+                    container.classList.add('blur-in');
+                    break;
+                case 'rotate':
+                    container.classList.add('rotate-in');
+                    break;
             }
         }
     }
 
     showImage(container, blobURL, media) {
-        container.innerHTML = `<img src="${blobURL}" alt="${media.name}" style="transform: scale(${this.currentZoom})">`;
+        const imageFit = this.slideshowSettings.imageFit;
+        container.innerHTML = `<img src="${blobURL}" alt="${media.name}" style="transform: scale(${this.currentZoom}); object-fit: ${imageFit}">`;
 
         // Schedule next slide if playing
         if (this.isPlaying) {
@@ -473,9 +644,10 @@ class SlideshowPlayer {
     showVideo(container, blobURL, media) {
         const loopCount = media.loopCount || 1;
         this.currentVideoLoopCount = 0;
+        const imageFit = this.slideshowSettings.imageFit;
 
         container.innerHTML = `
-            <video id="slideshowVideo" autoplay playsinline style="transform: scale(${this.currentZoom})">
+            <video id="slideshowVideo" autoplay playsinline style="transform: scale(${this.currentZoom}); object-fit: ${imageFit}">
                 <source src="${blobURL}" type="${media.mimeType || 'video/mp4'}">
             </video>
         `;
@@ -516,14 +688,36 @@ class SlideshowPlayer {
     previousSlide() {
         if (this.mediaItems.length === 0) return;
 
-        this.currentIndex = (this.currentIndex - 1 + this.mediaItems.length) % this.mediaItems.length;
+        if (this.slideshowSettings.playOrder === 'random') {
+            this.currentIndex = Math.floor(Math.random() * this.mediaItems.length);
+        } else {
+            this.currentIndex = (this.currentIndex - 1 + this.mediaItems.length) % this.mediaItems.length;
+        }
         this.showSlide(this.currentIndex);
     }
 
     nextSlide() {
         if (this.mediaItems.length === 0) return;
 
-        this.currentIndex = (this.currentIndex + 1) % this.mediaItems.length;
+        if (this.slideshowSettings.playOrder === 'random') {
+            // Random mode - pick random slide
+            this.currentIndex = Math.floor(Math.random() * this.mediaItems.length);
+        } else {
+            // Sequential mode
+            const nextIndex = this.currentIndex + 1;
+
+            // Check if we've reached the end
+            if (nextIndex >= this.mediaItems.length) {
+                if (this.slideshowSettings.loopSlideshow) {
+                    this.currentIndex = 0; // Loop back to beginning
+                } else {
+                    this.stopSlideshow(); // Stop at the end
+                    return;
+                }
+            } else {
+                this.currentIndex = nextIndex;
+            }
+        }
         this.showSlide(this.currentIndex);
     }
 

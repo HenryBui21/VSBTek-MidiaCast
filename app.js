@@ -26,7 +26,14 @@ class MediaCast {
         this.slideshowSettings = {
             transitionEffect: 'fade',
             slideDuration: 3000, // milliseconds
-            transitionSpeed: 600 // milliseconds
+            transitionSpeed: 600, // milliseconds
+            playOrder: 'sequential',
+            autoPlay: true,
+            loopSlideshow: true,
+            imageFit: 'contain',
+            backgroundColor: '#000000',
+            showCounter: true,
+            showControls: true
         };
 
         // Setup listeners first, then start auth initialization
@@ -245,6 +252,56 @@ class MediaCast {
         const saveVideoLoopBtn = document.getElementById('saveVideoLoopBtn');
         saveVideoLoopBtn.addEventListener('click', () => {
             this.saveCurrentVideoLoop();
+        });
+
+        // New settings controls
+        const playOrder = document.getElementById('playOrder');
+        const autoPlay = document.getElementById('autoPlay');
+        const loopSlideshow = document.getElementById('loopSlideshow');
+        const imageFit = document.getElementById('imageFit');
+        const backgroundColor = document.getElementById('backgroundColor');
+        const backgroundColorValue = document.getElementById('backgroundColorValue');
+        const showCounter = document.getElementById('showCounter');
+
+        playOrder.addEventListener('change', (e) => {
+            this.slideshowSettings.playOrder = e.target.value;
+            this.saveSettings();
+        });
+
+        autoPlay.addEventListener('change', (e) => {
+            this.slideshowSettings.autoPlay = e.target.checked;
+            this.saveSettings();
+        });
+
+        loopSlideshow.addEventListener('change', (e) => {
+            this.slideshowSettings.loopSlideshow = e.target.checked;
+            this.saveSettings();
+        });
+
+        imageFit.addEventListener('change', (e) => {
+            this.slideshowSettings.imageFit = e.target.value;
+            this.applyImageFit();
+            this.saveSettings();
+        });
+
+        backgroundColor.addEventListener('input', (e) => {
+            this.slideshowSettings.backgroundColor = e.target.value;
+            backgroundColorValue.textContent = e.target.value;
+            this.applyBackgroundColor();
+            this.saveSettings();
+        });
+
+        showCounter.addEventListener('change', (e) => {
+            this.slideshowSettings.showCounter = e.target.checked;
+            this.applyShowCounter();
+            this.saveSettings();
+        });
+
+        const showControls = document.getElementById('showControls');
+        showControls.addEventListener('change', (e) => {
+            this.slideshowSettings.showControls = e.target.checked;
+            this.applyShowControls();
+            this.saveSettings();
         });
 
         // Close settings panel when clicking outside
@@ -646,6 +703,7 @@ class MediaCast {
                 newImg.alt = item.name;
                 newImg.className = 'slideshow-media';
                 newImg.style.opacity = '0';
+                newImg.style.objectFit = this.slideshowSettings.imageFit;
 
                 // Add to DOM
                 content.appendChild(newImg);
@@ -684,6 +742,7 @@ class MediaCast {
             video.autoplay = true;
             video.className = 'slideshow-media';
             video.style.opacity = '0';
+            video.style.objectFit = this.slideshowSettings.imageFit;
 
             // Get video loop count (default to 1 if not set)
             const loopCount = item.videoLoopCount || 1;
@@ -781,6 +840,48 @@ class MediaCast {
         content.style.setProperty('--transition-speed', `${this.slideshowSettings.transitionSpeed}ms`);
     }
 
+    applyImageFit() {
+        const content = document.getElementById('slideshowContent');
+        const media = content?.querySelector('img, video');
+        if (media) {
+            media.style.objectFit = this.slideshowSettings.imageFit;
+        }
+    }
+
+    applyBackgroundColor() {
+        const modal = document.getElementById('slideshowModal');
+        if (modal) {
+            modal.style.backgroundColor = this.slideshowSettings.backgroundColor;
+        }
+    }
+
+    applyShowCounter() {
+        const counter = document.getElementById('slideshowCounter');
+        if (counter) {
+            counter.style.display = this.slideshowSettings.showCounter ? 'block' : 'none';
+        }
+    }
+
+    applyShowControls() {
+        const prevBtn = document.getElementById('slideshowPrevBtn');
+        const nextBtn = document.getElementById('slideshowNextBtn');
+        const playPauseBtn = document.getElementById('slideshowPlayPauseBtn');
+        const zoomControls = document.querySelector('.slideshow-zoom-controls');
+        // Keep settings button always visible so user can re-enable controls
+
+        if (!this.slideshowSettings.showControls) {
+            if (prevBtn) prevBtn.style.display = 'none';
+            if (nextBtn) nextBtn.style.display = 'none';
+            if (playPauseBtn) playPauseBtn.style.display = 'none';
+            if (zoomControls) zoomControls.style.display = 'none';
+        } else {
+            if (prevBtn) prevBtn.style.display = '';
+            if (nextBtn) nextBtn.style.display = '';
+            if (playPauseBtn) playPauseBtn.style.display = '';
+            if (zoomControls) zoomControls.style.display = '';
+        }
+    }
+
     updateVideoLoopSettingVisibility() {
         const currentItem = this.mediaItems[this.currentSlideIndex];
         const videoLoopSetting = document.getElementById('videoLoopSetting');
@@ -856,7 +957,7 @@ class MediaCast {
                 this.slideshowSettings = { ...this.slideshowSettings, ...stored };
             }
 
-            // Update UI
+            // Update UI - Basic settings
             const transitionEffect = document.getElementById('transitionEffect');
             const slideDuration = document.getElementById('slideDuration');
             const slideDurationValue = document.getElementById('slideDurationValue');
@@ -868,6 +969,25 @@ class MediaCast {
             slideDurationValue.textContent = `${this.slideshowSettings.slideDuration / 1000}s`;
             transitionSpeed.value = this.slideshowSettings.transitionSpeed;
             transitionSpeedValue.textContent = `${(this.slideshowSettings.transitionSpeed / 1000).toFixed(1)}s`;
+
+            // Update UI - New settings
+            const playOrder = document.getElementById('playOrder');
+            const autoPlay = document.getElementById('autoPlay');
+            const loopSlideshow = document.getElementById('loopSlideshow');
+            const imageFit = document.getElementById('imageFit');
+            const backgroundColor = document.getElementById('backgroundColor');
+            const backgroundColorValue = document.getElementById('backgroundColorValue');
+            const showCounter = document.getElementById('showCounter');
+            const showControls = document.getElementById('showControls');
+
+            if (playOrder) playOrder.value = this.slideshowSettings.playOrder;
+            if (autoPlay) autoPlay.checked = this.slideshowSettings.autoPlay;
+            if (loopSlideshow) loopSlideshow.checked = this.slideshowSettings.loopSlideshow;
+            if (imageFit) imageFit.value = this.slideshowSettings.imageFit;
+            if (backgroundColor) backgroundColor.value = this.slideshowSettings.backgroundColor;
+            if (backgroundColorValue) backgroundColorValue.textContent = this.slideshowSettings.backgroundColor;
+            if (showCounter) showCounter.checked = this.slideshowSettings.showCounter;
+            if (showControls) showControls.checked = this.slideshowSettings.showControls;
         } catch (e) {
             console.error('Lỗi khi tải settings:', e);
         }
