@@ -283,11 +283,21 @@ class SlideshowPlayer {
 
     async saveSettings() {
         try {
-            await this.db.saveSetting('slideDuration', this.slideshowSettings.slideDuration);
-            await this.db.saveSetting('transitionEffect', this.slideshowSettings.transitionEffect);
-            await this.db.saveSetting('transitionSpeed', this.slideshowSettings.transitionSpeed);
+            if (this.useServer) {
+                // Server mode - save to server
+                await api.updateSettings({
+                    slideDuration: this.slideshowSettings.slideDuration,
+                    transitionEffect: this.slideshowSettings.transitionEffect,
+                    transitionSpeed: this.slideshowSettings.transitionSpeed
+                });
+            } else {
+                // Local mode - save to IndexedDB
+                await this.db.saveSetting('slideDuration', this.slideshowSettings.slideDuration);
+                await this.db.saveSetting('transitionEffect', this.slideshowSettings.transitionEffect);
+                await this.db.saveSetting('transitionSpeed', this.slideshowSettings.transitionSpeed);
+            }
         } catch (e) {
-            console.log('Không thể lưu cài đặt');
+            console.log('Không thể lưu cài đặt:', e);
         }
     }
 
