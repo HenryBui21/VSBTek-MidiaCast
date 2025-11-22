@@ -604,6 +604,11 @@ h2 {
     background: #475569;
 }
 
+/* Clear All Button - Red on hover */
+#clearAllBtn:hover {
+    background: var(--danger-color);
+}
+
 /* Slideshow Modal */
 .slideshow-modal {
     display: none;
