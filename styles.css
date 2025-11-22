@@ -157,6 +157,9 @@ header {
 
 .logo-menu-wrapper {
     position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .clickable-logo {
