@@ -412,7 +412,7 @@ class SlideshowPlayer {
         this.currentVideoLoopCount = 0;
 
         container.innerHTML = `
-            <video id="slideshowVideo" autoplay muted playsinline style="transform: scale(${this.currentZoom})">
+            <video id="slideshowVideo" autoplay playsinline style="transform: scale(${this.currentZoom})">
                 <source src="${blobURL}" type="${media.mimeType || 'video/mp4'}">
             </video>
         `;
