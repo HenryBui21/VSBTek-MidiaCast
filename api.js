@@ -170,6 +170,11 @@ class MediaCastAPI {
         return response.json();
     }
 
+    async getUserById(id) {
+        const users = await this.getAllUsers();
+        return users.find(u => u.id === id) || null;
+    }
+
     async login(username, passwordHash) {
         const response = await fetch(`${this.baseURL}/api/auth/login`, {
             method: 'POST',

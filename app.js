@@ -1319,7 +1319,7 @@ class MediaCast {
 
     async renderUsersList() {
         const container = document.getElementById('usersList');
-        const users = await this.db.getAllUsers();
+        const users = this.useServer ? await api.getAllUsers() : await this.db.getAllUsers();
 
         container.innerHTML = users.map(user => {
             const isCurrentUser = user.id === this.currentUser?.id;
@@ -1372,13 +1372,6 @@ class MediaCast {
         }
 
         try {
-            // Check if username already exists
-            const existingUser = await this.db.getUserByUsername(username);
-            if (existingUser) {
-                alert('Tên đăng nhập đã tồn tại!');
-                return;
-            }
-
             const passwordHash = await this.hashPassword(password);
             const newUser = {
                 username: username,
@@ -1387,7 +1380,17 @@ class MediaCast {
                 createdAt: new Date().toISOString()
             };
 
-            await this.db.addUser(newUser);
+            if (this.useServer) {
+                await api.addUser(newUser);
+            } else {
+                // Check if username already exists (local mode)
+                const existingUser = await this.db.getUserByUsername(username);
+                if (existingUser) {
+                    alert('Tên đăng nhập đã tồn tại!');
+                    return;
+                }
+                await this.db.addUser(newUser);
+            }
 
             // Clear inputs
             usernameInput.value = '';
@@ -1413,7 +1416,11 @@ class MediaCast {
         }
 
         try {
-            await this.db.deleteUser(userId);
+            if (this.useServer) {
+                await api.deleteUser(userId);
+            } else {
+                await this.db.deleteUser(userId);
+            }
             this.renderUsersList();
             alert('Đã xóa người dùng thành công!');
         } catch (error) {
@@ -1423,7 +1430,7 @@ class MediaCast {
     }
 
     async openEditUserModal(userId) {
-        const user = await this.db.getUserById(userId);
+        const user = this.useServer ? await api.getUserById(userId) : await this.db.getUserById(userId);
         if (!user) {
             alert('Không tìm thấy người dùng!');
             return;
@@ -1443,7 +1450,7 @@ class MediaCast {
         const newPassword = document.getElementById('editUserPassword').value;
 
         try {
-            const user = await this.db.getUserById(userId);
+            const user = this.useServer ? await api.getUserById(userId) : await this.db.getUserById(userId);
             if (!user) {
                 alert('Không tìm thấy người dùng!');
                 return;
@@ -1459,7 +1466,11 @@ class MediaCast {
                 user.passwordHash = await this.hashPassword(newPassword);
             }
 
-            await this.db.updateUser(user);
+            if (this.useServer) {
+                await api.updateUser(userId, { role: user.role, passwordHash: user.passwordHash });
+            } else {
+                await this.db.updateUser(user);
+            }
 
             // Update current user if editing self
             if (userId === this.currentUser?.id) {
