@@ -1,91 +1,16 @@
 {
-  "media": [
-    {
-      "id": "miadqdwr1upd0za6sf6",
-      "name": "HP Laptop 15-fd0602TU.png",
-      "type": "image",
-      "category": "Sản phẩm",
-      "mimeType": "image/png",
-      "filename": "miadqdwr1upd0za6sf6.png",
-      "url": "/uploads/miadqdwr1upd0za6sf6.png",
-      "uploadedAt": "2025-11-22T14:23:40.012Z",
-      "loopCount": 1
-    },
-    {
-      "id": "miadqdxt1esxcgipd37",
-      "name": "dell-vostro-5402 - Edited.png",
-      "type": "image",
-      "category": "Sản phẩm",
-      "mimeType": "image/png",
-      "filename": "miadqdxt1esxcgipd37.png",
-      "url": "/uploads/miadqdxt1esxcgipd37.png",
-      "uploadedAt": "2025-11-22T14:23:40.051Z",
-      "loopCount": 1
-    },
-    {
-      "id": "miadqdyhnga6u7bn24h",
-      "name": "ViewSonic VX2416-FHD.png",
-      "type": "image",
-      "category": "Sản phẩm",
-      "mimeType": "image/png",
-      "filename": "miadqdyhnga6u7bn24h.png",
-      "url": "/uploads/miadqdyhnga6u7bn24h.png",
-      "uploadedAt": "2025-11-22T14:23:40.073Z",
-      "loopCount": 1
-    },
-    {
-      "id": "miadqe02m1srct7l8p9",
-      "name": "ASUS PRIME B450M-A II.png",
-      "type": "image",
-      "category": "Sản phẩm",
-      "mimeType": "image/png",
-      "filename": "miadqe02m1srct7l8p9.png",
-      "url": "/uploads/miadqe02m1srct7l8p9.png",
-      "uploadedAt": "2025-11-22T14:23:40.131Z",
-      "loopCount": 1
-    },
-    {
-      "id": "miadqe0qkrf1nkc6hp",
-      "name": "Case VSP V200 Plus Black.png",
-      "type": "image",
-      "category": "Sản phẩm",
-      "mimeType": "image/png",
-      "filename": "miadqe0qkrf1nkc6hp.png",
-      "url": "/uploads/miadqe0qkrf1nkc6hp.png",
-      "uploadedAt": "2025-11-22T14:23:40.155Z",
-      "loopCount": 1
-    },
-    {
-      "id": "miadtmx9kc8dg78g6op",
-      "name": "Recording 2025-11-16 212517.mp4",
-      "type": "video",
-      "category": "Videos",
-      "mimeType": "video/mp4",
-      "filename": "miadtmx9kc8dg78g6op.mp4",
-      "url": "/uploads/miadtmx9kc8dg78g6op.mp4",
-      "uploadedAt": "2025-11-22T14:26:11.693Z",
-      "loopCount": 1
-    }
-  ],
+  "media": [],
   "categories": [
     "Chung",
     "Sản phẩm",
     "Sự kiện",
-    "Khuyến mãi",
-    "Videos"
+    "Video",
+    "Khuyến mãi"
   ],
   "settings": {
     "slideDuration": 3000,
     "transitionEffect": "fade",
     "transitionSpeed": 600
   },
-  "users": [
-    {
-      "id": "miadojtbf5zu5gydjd9",
-      "username": "vsbtek",
-      "passwordHash": "d6712b94db98ac319e542cb5ee55d1bd4641f5e48510d79e87813e0b2edc9a2f",
-      "role": "admin",
-      "createdAt": "2025-11-22T14:22:14.351Z"
-    }
-  ]
+  "users": []
 }
