@@ -1453,11 +1453,11 @@ class MediaCast {
                         <span class="user-role ${roleClass}">${roleText}</span>
                     </div>
                     <div class="user-actions">
-                        <button class="user-edit-btn" onclick="mediaApp.openEditUserModal(${user.id})">
+                        <button class="user-edit-btn" onclick="mediaApp.openEditUserModal('${user.id}')">
                             Sửa
                         </button>
                         <button class="user-delete-btn"
-                                onclick="mediaApp.deleteUser(${user.id})"
+                                onclick="mediaApp.deleteUser('${user.id}')"
                                 ${isCurrentUser ? 'disabled title="Không thể xóa tài khoản đang đăng nhập"' : ''}>
                             Xóa
                         </button>
