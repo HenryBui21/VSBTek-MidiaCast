@@ -223,12 +223,12 @@ class MediaCast {
             this.isSettingsPanelOpen = !this.isSettingsPanelOpen;
             slideshowSettingsPanel.classList.toggle('active');
 
+            // Always clear timeout first
+            this.clearControlsTimeout();
+
             // When closing settings panel, restart auto-hide countdown
             if (!this.isSettingsPanelOpen) {
                 this.resetControlsTimeout();
-            } else {
-                // When opening settings, clear timeout so controls stay visible
-                this.clearControlsTimeout();
             }
         });
 
@@ -332,7 +332,8 @@ class MediaCast {
                 if (this.isSettingsPanelOpen) {
                     this.isSettingsPanelOpen = false;
                     slideshowSettingsPanel.classList.remove('active');
-                    // Restart auto-hide countdown when closing settings panel
+                    // Clear and restart auto-hide countdown when closing settings panel
+                    this.clearControlsTimeout();
                     this.resetControlsTimeout();
                 }
             }
@@ -687,9 +688,23 @@ class MediaCast {
             return;
         }
 
-        this.clearControlsTimeout();
+        // Debounce: only reset timeout if last interaction was more than 500ms ago
+        const now = Date.now();
+        if (this.lastControlsInteraction && (now - this.lastControlsInteraction) < 500) {
+            return;
+        }
+        this.lastControlsInteraction = now;
+
+        // Clear existing timeout and set new one
+        if (this.controlsTimeout) {
+            clearTimeout(this.controlsTimeout);
+        }
 
         this.controlsTimeout = setTimeout(() => {
+            this.controlsTimeout = null;
+            if (this.isSettingsPanelOpen) {
+                return;
+            }
             modal.classList.remove('show-controls');
         }, 3000);
     }

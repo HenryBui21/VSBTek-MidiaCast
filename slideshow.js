@@ -24,6 +24,7 @@ class SlideshowPlayer {
         this.slideshowInterval = null;
         this.controlsTimeout = null;
         this.isSettingsPanelOpen = false;
+        this.controlsInitialized = false;
 
         // Server mode - will be determined after checking API availability
         this.useServer = false;
@@ -98,6 +99,12 @@ class SlideshowPlayer {
     }
 
     initControls() {
+        // Prevent multiple initializations (would create duplicate event listeners)
+        if (this.controlsInitialized) {
+            return;
+        }
+        this.controlsInitialized = true;
+
         // Navigation controls
         const prevBtn = document.getElementById('prevBtn');
         const nextBtn = document.getElementById('nextBtn');
@@ -132,7 +139,12 @@ class SlideshowPlayer {
 
             // When closing settings panel, restart auto-hide countdown
             if (!this.isSettingsPanelOpen) {
-                this.startAutoHideControls();
+                // Force new timeout by clearing first
+                if (this.controlsTimeout) {
+                    clearTimeout(this.controlsTimeout);
+                    this.controlsTimeout = null;
+                }
+                this.showControls();
             } else {
                 // When opening settings, clear timeout so controls stay visible
                 if (this.controlsTimeout) {
@@ -240,8 +252,13 @@ class SlideshowPlayer {
                 if (this.isSettingsPanelOpen) {
                     this.isSettingsPanelOpen = false;
                     settingsPanel.classList.remove('active');
+                    // Force new timeout by clearing first
+                    if (this.controlsTimeout) {
+                        clearTimeout(this.controlsTimeout);
+                        this.controlsTimeout = null;
+                    }
                     // Restart auto-hide countdown when closing settings panel
-                    this.startAutoHideControls();
+                    this.showControls();
                 }
             }
         });
@@ -381,13 +398,24 @@ class SlideshowPlayer {
             return;
         }
 
-        // Clear existing timeout
+        // Debounce: only reset timeout if last interaction was more than 500ms ago
+        const now = Date.now();
+        if (this.lastControlsInteraction && (now - this.lastControlsInteraction) < 500) {
+            return;
+        }
+        this.lastControlsInteraction = now;
+
+        // Clear existing timeout and set new one
         if (this.controlsTimeout) {
             clearTimeout(this.controlsTimeout);
         }
 
         // Hide controls after 3 seconds
         this.controlsTimeout = setTimeout(() => {
+            this.controlsTimeout = null;
+            if (this.isSettingsPanelOpen) {
+                return;
+            }
             controls.classList.remove('visible');
             info.classList.remove('visible');
             zoomControls.classList.remove('visible');
@@ -550,36 +578,7 @@ class SlideshowPlayer {
         this.updatePlayPauseButton();
         this.showSlide(this.currentIndex);
         // Show controls initially then auto-hide after 3s
-        // This ensures controls hide on TV even without mouse movement
         this.showControls();
-        this.startAutoHideControls();
-    }
-
-    // Auto-hide controls after delay - works independently of mouse events
-    // Essential for TV browsers where mousemove may not fire
-    startAutoHideControls() {
-        // Don't start auto-hide if settings panel is open
-        if (this.isSettingsPanelOpen) {
-            return;
-        }
-
-        const controls = document.getElementById('slideshowControls');
-        const info = document.getElementById('slideshowInfo');
-        const zoomControls = document.getElementById('zoomControls');
-        const settingsBtn = document.getElementById('slideshowSettingsBtn');
-
-        // Clear any existing timeout
-        if (this.controlsTimeout) {
-            clearTimeout(this.controlsTimeout);
-        }
-
-        // Hide controls after 3 seconds
-        this.controlsTimeout = setTimeout(() => {
-            controls.classList.remove('visible');
-            info.classList.remove('visible');
-            zoomControls.classList.remove('visible');
-            settingsBtn.classList.remove('visible');
-        }, 3000);
     }
 
     stopSlideshow() {
