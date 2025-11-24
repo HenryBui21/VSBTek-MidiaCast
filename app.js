@@ -10,13 +10,13 @@ class MediaCast {
         this.controlsTimeout = null;
         this.isSettingsPanelOpen = false;
         this.currentVideoLoopCount = 0;
-        this.isWaitingForVideo = false;
         this.currentZoom = 1;
         this.isAuthenticated = false;
         this.currentUser = null;
         this.isInitialized = false;
         this.isAuthReady = false;
         this.initAuthPromise = null;
+        this.slideshowAbortController = null;
 
         // Slideshow settings
         this.slideshowSettings = {
@@ -336,22 +336,28 @@ class MediaCast {
     async handleFiles(files) {
         const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'];
         const selectedCategory = document.getElementById('uploadCategory').value;
-
-        for (const file of Array.from(files)) {
+        const validFiles = Array.from(files).filter(file => {
             if (!validTypes.includes(file.type)) {
                 alert(`File ${file.name} không được hỗ trợ!`);
-                continue;
+                return false;
             }
+            return true;
+        });
 
+        if (validFiles.length === 0) return;
+
+        for (const file of validFiles) {
             try {
                 await api.uploadMedia(file, selectedCategory);
-                await this.loadFromServer();
-                this.renderGallery();
             } catch (error) {
                 console.error('Lỗi khi thêm media:', error);
                 alert(`Không thể thêm file ${file.name}`);
             }
         }
+
+        // Reload data once after all uploads complete
+        await this.loadFromServer();
+        this.renderGallery();
     }
 
     // Category Management
@@ -396,17 +402,24 @@ class MediaCast {
             return `
                 <div class="category-list-item">
                     <div>
-                        <span class="category-list-name">${cat}</span>
+                        <span class="category-list-name">${this.escapeHtml(cat)}</span>
                         <span class="category-list-count">(${count} media)</span>
                     </div>
-                    <button class="category-delete-btn"
-                            onclick="mediaApp.deleteCategory('${cat}')"
+                    <button class="category-delete-btn" data-category="${this.escapeHtml(cat)}"
                             ${isDefault ? 'disabled' : ''}>
                         Xóa
                     </button>
                 </div>
             `;
         }).join('');
+
+        // Event delegation for delete buttons
+        container.querySelectorAll('.category-delete-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const category = btn.dataset.category;
+                this.deleteCategory(category);
+            });
+        });
     }
 
     async addCategory(categoryName) {
@@ -476,19 +489,19 @@ class MediaCast {
             const mediaURL = api.getMediaURL(item);
 
             return `
-                <div class="media-item" data-id="${item.id}" onclick="mediaApp.viewMedia(${originalIndex})">
+                <div class="media-item" data-id="${this.escapeHtml(item.id)}" data-index="${originalIndex}">
                     ${item.type === 'image'
-                        ? `<img src="${mediaURL}" alt="${item.name}">`
+                        ? `<img src="${mediaURL}" alt="${this.escapeHtml(item.name)}">`
                         : `<video src="${mediaURL}" muted></video>`
                     }
                     <div class="media-item-overlay">
                         <div class="media-item-info">
-                            <div class="media-item-name">${item.name}</div>
-                            <div class="media-item-category">${item.category}</div>
+                            <div class="media-item-name">${this.escapeHtml(item.name)}</div>
+                            <div class="media-item-category">${this.escapeHtml(item.category)}</div>
                         </div>
                     </div>
                     <div class="media-item-actions">
-                        <button class="delete-btn" onclick="event.stopPropagation(); mediaApp.deleteMedia('${item.id}')">
+                        <button class="delete-btn" data-id="${this.escapeHtml(item.id)}">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -498,6 +511,24 @@ class MediaCast {
                 </div>
             `;
         }).join('');
+
+        // Event delegation for media items
+        galleryGrid.querySelectorAll('.media-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (!e.target.closest('.delete-btn')) {
+                    const index = parseInt(item.dataset.index);
+                    this.viewMedia(index);
+                }
+            });
+        });
+
+        galleryGrid.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                this.deleteMedia(id);
+            });
+        });
     }
 
     async deleteMedia(id) {
@@ -548,6 +579,12 @@ class MediaCast {
         this.stopSlideshow();
         this.clearControlsTimeout();
 
+        // Cleanup slideshow event listeners
+        if (this.slideshowAbortController) {
+            this.slideshowAbortController.abort();
+            this.slideshowAbortController = null;
+        }
+
         this.currentZoom = 1;
 
         const videos = document.querySelectorAll('.slideshow-content video');
@@ -560,6 +597,13 @@ class MediaCast {
     setupSlideshowControls() {
         const modal = document.getElementById('slideshowModal');
 
+        // Cleanup previous listeners if any
+        if (this.slideshowAbortController) {
+            this.slideshowAbortController.abort();
+        }
+        this.slideshowAbortController = new AbortController();
+        const signal = this.slideshowAbortController.signal;
+
         modal.classList.add('show-controls');
         this.resetControlsTimeout();
 
@@ -570,17 +614,17 @@ class MediaCast {
             }
         };
 
-        modal.addEventListener('mousemove', showAndResetControls);
-        modal.addEventListener('click', showAndResetControls);
-        modal.addEventListener('touchstart', showAndResetControls, { passive: true });
-        modal.addEventListener('touchmove', showAndResetControls, { passive: true });
-        modal.addEventListener('keydown', showAndResetControls);
+        modal.addEventListener('mousemove', showAndResetControls, { signal });
+        modal.addEventListener('click', showAndResetControls, { signal });
+        modal.addEventListener('touchstart', showAndResetControls, { passive: true, signal });
+        modal.addEventListener('touchmove', showAndResetControls, { passive: true, signal });
+        modal.addEventListener('keydown', showAndResetControls, { signal });
 
         modal.addEventListener('mouseleave', () => {
             if (!this.isSettingsPanelOpen) {
                 this.resetControlsTimeout();
             }
-        });
+        }, { signal });
     }
 
     resetControlsTimeout() {
@@ -1264,15 +1308,14 @@ class MediaCast {
             return `
                 <div class="user-list-item">
                     <div class="user-info">
-                        <span class="user-name">${user.username}</span>
+                        <span class="user-name">${this.escapeHtml(user.username)}</span>
                         <span class="user-role ${roleClass}">${roleText}</span>
                     </div>
                     <div class="user-actions">
-                        <button class="user-edit-btn" onclick="mediaApp.openEditUserModal('${user.id}')">
+                        <button class="user-edit-btn" data-user-id="${this.escapeHtml(user.id)}">
                             Sửa
                         </button>
-                        <button class="user-delete-btn"
-                                onclick="mediaApp.deleteUser('${user.id}')"
+                        <button class="user-delete-btn" data-user-id="${this.escapeHtml(user.id)}"
                                 ${isCurrentUser ? 'disabled title="Không thể xóa tài khoản đang đăng nhập"' : ''}>
                             Xóa
                         </button>
@@ -1280,6 +1323,21 @@ class MediaCast {
                 </div>
             `;
         }).join('');
+
+        // Event delegation for user actions
+        container.querySelectorAll('.user-edit-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const userId = btn.dataset.userId;
+                this.openEditUserModal(userId);
+            });
+        });
+
+        container.querySelectorAll('.user-delete-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const userId = btn.dataset.userId;
+                this.deleteUser(userId);
+            });
+        });
     }
 
     async addNewUser() {
@@ -1402,6 +1460,13 @@ class MediaCast {
         document.getElementById('currentPassword').value = '';
         document.getElementById('newPassword').value = '';
         document.getElementById('confirmPassword').value = '';
+    }
+
+    // Utility method to escape HTML and prevent XSS
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     async handleChangePassword() {

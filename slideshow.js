@@ -589,7 +589,13 @@ class SlideshowPlayer {
 
     showImage(container, mediaURL, media) {
         const imageFit = this.slideshowSettings.imageFit;
-        container.innerHTML = `<img src="${mediaURL}" alt="${media.name}" style="transform: scale(${this.currentZoom}); object-fit: ${imageFit}">`;
+        const img = document.createElement('img');
+        img.src = mediaURL;
+        img.alt = media.name;
+        img.style.transform = `scale(${this.currentZoom})`;
+        img.style.objectFit = imageFit;
+        container.innerHTML = '';
+        container.appendChild(img);
 
         if (this.isPlaying) {
             this.scheduleNextSlide();
@@ -601,13 +607,20 @@ class SlideshowPlayer {
         this.currentVideoLoopCount = 0;
         const imageFit = this.slideshowSettings.imageFit;
 
-        container.innerHTML = `
-            <video id="slideshowVideo" autoplay playsinline style="transform: scale(${this.currentZoom}); object-fit: ${imageFit}">
-                <source src="${mediaURL}" type="${media.mimeType || 'video/mp4'}">
-            </video>
-        `;
+        const video = document.createElement('video');
+        video.id = 'slideshowVideo';
+        video.autoplay = true;
+        video.playsInline = true;
+        video.style.transform = `scale(${this.currentZoom})`;
+        video.style.objectFit = imageFit;
 
-        const video = document.getElementById('slideshowVideo');
+        const source = document.createElement('source');
+        source.src = mediaURL;
+        source.type = media.mimeType || 'video/mp4';
+        video.appendChild(source);
+
+        container.innerHTML = '';
+        container.appendChild(video);
 
         video.addEventListener('ended', () => {
             this.currentVideoLoopCount++;
