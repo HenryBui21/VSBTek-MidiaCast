@@ -1,13 +1,11 @@
 // Slideshow Player for TV/Display devices
-// No authentication required
+// Server mode only - No authentication required
 
 class SlideshowPlayer {
     constructor() {
         this.mediaItems = [];
         this.currentIndex = 0;
         this.isPlaying = false;
-        this.db = new DatabaseManager();
-        this.blobURLs = new Map();
         this.currentVideoLoopCount = 0;
         this.currentZoom = 1;
         this.slideshowSettings = {
@@ -25,9 +23,8 @@ class SlideshowPlayer {
         this.controlsTimeout = null;
         this.isSettingsPanelOpen = false;
         this.controlsInitialized = false;
-
-        // Server mode - will be determined after checking API availability
-        this.useServer = false;
+        this.lastInteractionTime = Date.now();
+        this.controlsVisible = true;
 
         this.init();
     }
@@ -36,17 +33,15 @@ class SlideshowPlayer {
         try {
             // Check if API server is available
             if (typeof api !== 'undefined') {
-                this.useServer = await api.checkAvailability();
+                const isAvailable = await api.checkAvailability();
+                if (!isAvailable) {
+                    this.showEmptyState('Không thể kết nối đến server. Vui lòng đảm bảo server đang chạy!');
+                    return;
+                }
             }
 
-            if (this.useServer) {
-                // Server mode - load from API
-                await this.loadFromServer();
-            } else {
-                await this.db.init();
-                await this.loadMedia();
-                await this.loadSettings();
-            }
+            // Load from server
+            await this.loadFromServer();
 
             if (this.mediaItems.length > 0) {
                 this.hideLoading();
@@ -59,9 +54,12 @@ class SlideshowPlayer {
             // Auto-refresh media every 30 seconds to sync
             setInterval(() => this.refreshMedia(), 30000);
 
+            // Auto-hide controls checker - runs every second
+            setInterval(() => this.checkAutoHideControls(), 1000);
+
         } catch (error) {
             console.error('Lỗi khởi tạo slideshow:', error);
-            this.showEmptyState();
+            this.showEmptyState('Có lỗi xảy ra. Vui lòng kiểm tra kết nối server!');
         }
     }
 
@@ -95,11 +93,11 @@ class SlideshowPlayer {
             }
         } catch (e) {
             console.error('Lỗi tải từ server:', e);
+            throw e;
         }
     }
 
     initControls() {
-        // Prevent multiple initializations (would create duplicate event listeners)
         if (this.controlsInitialized) {
             return;
         }
@@ -137,33 +135,17 @@ class SlideshowPlayer {
             this.isSettingsPanelOpen = !this.isSettingsPanelOpen;
             settingsPanel.classList.toggle('active');
 
-            // When closing settings panel, restart auto-hide countdown
             if (!this.isSettingsPanelOpen) {
-                // Force new timeout by clearing first
-                if (this.controlsTimeout) {
-                    clearTimeout(this.controlsTimeout);
-                    this.controlsTimeout = null;
-                }
-                this.showControls();
-            } else {
-                // When opening settings, clear timeout so controls stay visible
-                if (this.controlsTimeout) {
-                    clearTimeout(this.controlsTimeout);
-                    this.controlsTimeout = null;
-                }
+                this.lastInteractionTime = Date.now();
             }
         });
 
-        // Prevent clicks inside settings panel from bubbling up
         settingsPanel.addEventListener('click', (e) => {
             e.stopPropagation();
         });
         settingsPanel.addEventListener('touchstart', (e) => {
             e.stopPropagation();
         }, { passive: true });
-        settingsPanel.addEventListener('mousemove', (e) => {
-            e.stopPropagation();
-        });
 
         transitionEffect.addEventListener('change', (e) => {
             this.slideshowSettings.transitionEffect = e.target.value;
@@ -176,7 +158,6 @@ class SlideshowPlayer {
             slideDurationValue.textContent = `${value}s`;
             this.saveSettings();
 
-            // Restart slideshow if playing
             if (this.isPlaying) {
                 this.stopSlideshow();
                 this.startSlideshow();
@@ -252,13 +233,7 @@ class SlideshowPlayer {
                 if (this.isSettingsPanelOpen) {
                     this.isSettingsPanelOpen = false;
                     settingsPanel.classList.remove('active');
-                    // Force new timeout by clearing first
-                    if (this.controlsTimeout) {
-                        clearTimeout(this.controlsTimeout);
-                        this.controlsTimeout = null;
-                    }
-                    // Restart auto-hide countdown when closing settings panel
-                    this.showControls();
+                    this.lastInteractionTime = Date.now();
                 }
             }
         });
@@ -289,23 +264,17 @@ class SlideshowPlayer {
             }
         });
 
-        // Show controls on user interaction (mouse, touch, click)
-        // This ensures controls work on TV browsers where mousemove may not fire
+        // Show controls on user interaction
         const container = document.getElementById('slideshowContainer');
 
-        // Helper to show controls only when settings panel is closed
         const showControlsIfNotInSettings = () => {
             if (!this.isSettingsPanelOpen) {
                 this.showControls();
             }
         };
 
-        container.addEventListener('mousemove', showControlsIfNotInSettings);
         container.addEventListener('click', showControlsIfNotInSettings);
         container.addEventListener('touchstart', showControlsIfNotInSettings, { passive: true });
-        container.addEventListener('touchmove', showControlsIfNotInSettings, { passive: true });
-
-        // Also listen on document for remote control navigation on TV
         document.addEventListener('keydown', showControlsIfNotInSettings);
 
         // Initialize settings values
@@ -370,8 +339,6 @@ class SlideshowPlayer {
     applyShowControls() {
         const controls = document.getElementById('slideshowControls');
         const zoomControls = document.getElementById('zoomControls');
-        // Keep settings button always visible so user can re-enable controls
-        // const settingsBtn = document.getElementById('slideshowSettingsBtn');
 
         if (!this.slideshowSettings.showControls) {
             controls.style.display = 'none';
@@ -393,131 +360,52 @@ class SlideshowPlayer {
         zoomControls.classList.add('visible');
         settingsBtn.classList.add('visible');
 
-        // Don't set auto-hide timeout if settings panel is open
+        this.controlsVisible = true;
+        this.lastInteractionTime = Date.now();
+    }
+
+    checkAutoHideControls() {
         if (this.isSettingsPanelOpen) {
             return;
         }
 
-        // Debounce: only reset timeout if last interaction was more than 500ms ago
-        const now = Date.now();
-        if (this.lastControlsInteraction && (now - this.lastControlsInteraction) < 500) {
+        if (!this.controlsVisible) {
             return;
         }
-        this.lastControlsInteraction = now;
 
-        // Clear existing timeout and set new one
-        if (this.controlsTimeout) {
-            clearTimeout(this.controlsTimeout);
+        const now = Date.now();
+        if (now - this.lastInteractionTime >= 3000) {
+            this.hideControls();
         }
-
-        // Hide controls after 3 seconds
-        this.controlsTimeout = setTimeout(() => {
-            this.controlsTimeout = null;
-            if (this.isSettingsPanelOpen) {
-                return;
-            }
-            controls.classList.remove('visible');
-            info.classList.remove('visible');
-            zoomControls.classList.remove('visible');
-            settingsBtn.classList.remove('visible');
-        }, 3000);
     }
 
-    async loadMedia() {
-        const allMedia = await this.db.getAllMedia();
+    hideControls() {
+        const controls = document.getElementById('slideshowControls');
+        const info = document.getElementById('slideshowInfo');
+        const zoomControls = document.getElementById('zoomControls');
+        const settingsBtn = document.getElementById('slideshowSettingsBtn');
 
-        // Get category filter from URL if provided
-        const urlParams = new URLSearchParams(window.location.search);
-        const category = urlParams.get('category');
+        controls.classList.remove('visible');
+        info.classList.remove('visible');
+        zoomControls.classList.remove('visible');
+        settingsBtn.classList.remove('visible');
 
-        if (category && category !== 'all') {
-            this.mediaItems = allMedia.filter(item => item.category === category);
-        } else {
-            this.mediaItems = allMedia;
-        }
-
-        // Sort by upload date
-        this.mediaItems.sort((a, b) => new Date(a.uploadedAt) - new Date(b.uploadedAt));
-    }
-
-    async loadSettings() {
-        try {
-            const duration = await this.db.getSetting('slideDuration');
-            if (duration) {
-                this.slideshowSettings.slideDuration = duration;
-            }
-
-            const transitionEffect = await this.db.getSetting('transitionEffect');
-            if (transitionEffect) {
-                this.slideshowSettings.transitionEffect = transitionEffect;
-            }
-
-            const transitionSpeed = await this.db.getSetting('transitionSpeed');
-            if (transitionSpeed) {
-                this.slideshowSettings.transitionSpeed = transitionSpeed;
-            }
-
-            const playOrder = await this.db.getSetting('playOrder');
-            if (playOrder) {
-                this.slideshowSettings.playOrder = playOrder;
-            }
-
-            const loopSlideshow = await this.db.getSetting('loopSlideshow');
-            if (loopSlideshow !== null && loopSlideshow !== undefined) {
-                this.slideshowSettings.loopSlideshow = loopSlideshow;
-            }
-
-            const imageFit = await this.db.getSetting('imageFit');
-            if (imageFit) {
-                this.slideshowSettings.imageFit = imageFit;
-            }
-
-            const backgroundColor = await this.db.getSetting('backgroundColor');
-            if (backgroundColor) {
-                this.slideshowSettings.backgroundColor = backgroundColor;
-            }
-
-            const showCounter = await this.db.getSetting('showCounter');
-            if (showCounter !== null && showCounter !== undefined) {
-                this.slideshowSettings.showCounter = showCounter;
-            }
-
-            const showControls = await this.db.getSetting('showControls');
-            if (showControls !== null && showControls !== undefined) {
-                this.slideshowSettings.showControls = showControls;
-            }
-        } catch (e) {
-            console.log('Sử dụng cài đặt mặc định');
-        }
+        this.controlsVisible = false;
     }
 
     async saveSettings() {
         try {
-            if (this.useServer) {
-                // Server mode - save to server
-                await api.updateSettings({
-                    slideDuration: this.slideshowSettings.slideDuration,
-                    transitionEffect: this.slideshowSettings.transitionEffect,
-                    transitionSpeed: this.slideshowSettings.transitionSpeed,
-                    playOrder: this.slideshowSettings.playOrder,
-                    loopSlideshow: this.slideshowSettings.loopSlideshow,
-                    imageFit: this.slideshowSettings.imageFit,
-                    backgroundColor: this.slideshowSettings.backgroundColor,
-                    showCounter: this.slideshowSettings.showCounter,
-                    showControls: this.slideshowSettings.showControls
-                });
-            } else {
-                // Local mode - save to IndexedDB
-                await this.db.saveSetting('slideDuration', this.slideshowSettings.slideDuration);
-                await this.db.saveSetting('transitionEffect', this.slideshowSettings.transitionEffect);
-                await this.db.saveSetting('transitionSpeed', this.slideshowSettings.transitionSpeed);
-                await this.db.saveSetting('playOrder', this.slideshowSettings.playOrder);
-                await this.db.saveSetting('loopSlideshow', this.slideshowSettings.loopSlideshow);
-                await this.db.saveSetting('imageFit', this.slideshowSettings.imageFit);
-                await this.db.saveSetting('backgroundColor', this.slideshowSettings.backgroundColor);
-                await this.db.saveSetting('showCounter', this.slideshowSettings.showCounter);
-                await this.db.saveSetting('showControls', this.slideshowSettings.showControls);
-            }
+            await api.updateSettings({
+                slideDuration: this.slideshowSettings.slideDuration,
+                transitionEffect: this.slideshowSettings.transitionEffect,
+                transitionSpeed: this.slideshowSettings.transitionSpeed,
+                playOrder: this.slideshowSettings.playOrder,
+                loopSlideshow: this.slideshowSettings.loopSlideshow,
+                imageFit: this.slideshowSettings.imageFit,
+                backgroundColor: this.slideshowSettings.backgroundColor,
+                showCounter: this.slideshowSettings.showCounter,
+                showControls: this.slideshowSettings.showControls
+            });
         } catch (e) {
             console.log('Không thể lưu cài đặt:', e);
         }
@@ -526,29 +414,27 @@ class SlideshowPlayer {
     async refreshMedia() {
         const previousCount = this.mediaItems.length;
 
-        if (this.useServer) {
+        try {
             await this.loadFromServer();
-        } else {
-            await this.loadMedia();
-        }
 
-        // If media changed, update display
-        if (this.mediaItems.length !== previousCount) {
-            if (this.mediaItems.length === 0) {
-                this.stopSlideshow();
-                this.showEmptyState();
-            } else if (previousCount === 0) {
-                this.hideEmptyState();
-                this.hideLoading();
-                this.initControls();
-                this.startSlideshow();
-            } else {
-                // Adjust current index if needed
-                if (this.currentIndex >= this.mediaItems.length) {
-                    this.currentIndex = 0;
+            if (this.mediaItems.length !== previousCount) {
+                if (this.mediaItems.length === 0) {
+                    this.stopSlideshow();
+                    this.showEmptyState();
+                } else if (previousCount === 0) {
+                    this.hideEmptyState();
+                    this.hideLoading();
+                    this.initControls();
+                    this.startSlideshow();
+                } else {
+                    if (this.currentIndex >= this.mediaItems.length) {
+                        this.currentIndex = 0;
+                    }
+                    this.updateCounter();
                 }
-                this.updateCounter();
             }
+        } catch (e) {
+            console.error('Lỗi refresh media:', e);
         }
     }
 
@@ -560,10 +446,15 @@ class SlideshowPlayer {
         }, 500);
     }
 
-    showEmptyState() {
+    showEmptyState(message = 'Chưa có media nào. Hãy thêm media từ trang quản lý!') {
         document.getElementById('loadingScreen').style.display = 'none';
         document.getElementById('slideshowContainer').style.display = 'none';
-        document.getElementById('emptyState').style.display = 'flex';
+        const emptyState = document.getElementById('emptyState');
+        emptyState.style.display = 'flex';
+        const emptyMessage = emptyState.querySelector('p');
+        if (emptyMessage) {
+            emptyMessage.textContent = message;
+        }
     }
 
     hideEmptyState() {
@@ -577,7 +468,6 @@ class SlideshowPlayer {
         this.isPlaying = true;
         this.updatePlayPauseButton();
         this.showSlide(this.currentIndex);
-        // Show controls initially then auto-hide after 3s
         this.showControls();
     }
 
@@ -619,31 +509,20 @@ class SlideshowPlayer {
         const media = this.mediaItems[index];
         const slideContainer = document.getElementById('currentSlide');
 
-        // Clean up previous blob URL (only for local mode)
-        if (!this.useServer) {
-            this.cleanupCurrentSlide();
-        }
-
         // Reset zoom
         this.currentZoom = 1;
 
-        // Get media URL
-        let blobURL;
-        if (this.useServer) {
-            blobURL = api.getMediaURL(media);
-        } else {
-            blobURL = this.db.createBlobURL(media.blob);
-            this.blobURLs.set(media.id, blobURL);
-        }
+        // Get media URL from server
+        const mediaURL = api.getMediaURL(media);
 
         // Apply transition effect
         this.applyTransitionEffect(slideContainer, 'out');
 
         setTimeout(() => {
             if (media.type === 'video') {
-                this.showVideo(slideContainer, blobURL, media);
+                this.showVideo(slideContainer, mediaURL, media);
             } else {
-                this.showImage(slideContainer, blobURL, media);
+                this.showImage(slideContainer, mediaURL, media);
             }
 
             this.applyTransitionEffect(slideContainer, 'in');
@@ -654,7 +533,6 @@ class SlideshowPlayer {
     applyTransitionEffect(container, direction) {
         const effect = this.slideshowSettings.transitionEffect;
 
-        // Remove all transition classes
         container.classList.remove(
             'fade-in', 'fade-out',
             'slide-in-right', 'slide-out-left',
@@ -709,24 +587,23 @@ class SlideshowPlayer {
         }
     }
 
-    showImage(container, blobURL, media) {
+    showImage(container, mediaURL, media) {
         const imageFit = this.slideshowSettings.imageFit;
-        container.innerHTML = `<img src="${blobURL}" alt="${media.name}" style="transform: scale(${this.currentZoom}); object-fit: ${imageFit}">`;
+        container.innerHTML = `<img src="${mediaURL}" alt="${media.name}" style="transform: scale(${this.currentZoom}); object-fit: ${imageFit}">`;
 
-        // Schedule next slide if playing
         if (this.isPlaying) {
             this.scheduleNextSlide();
         }
     }
 
-    showVideo(container, blobURL, media) {
+    showVideo(container, mediaURL, media) {
         const loopCount = media.loopCount || 1;
         this.currentVideoLoopCount = 0;
         const imageFit = this.slideshowSettings.imageFit;
 
         container.innerHTML = `
             <video id="slideshowVideo" autoplay playsinline style="transform: scale(${this.currentZoom}); object-fit: ${imageFit}">
-                <source src="${blobURL}" type="${media.mimeType || 'video/mp4'}">
+                <source src="${mediaURL}" type="${media.mimeType || 'video/mp4'}">
             </video>
         `;
 
@@ -778,18 +655,15 @@ class SlideshowPlayer {
         if (this.mediaItems.length === 0) return;
 
         if (this.slideshowSettings.playOrder === 'random') {
-            // Random mode - pick random slide
             this.currentIndex = Math.floor(Math.random() * this.mediaItems.length);
         } else {
-            // Sequential mode
             const nextIndex = this.currentIndex + 1;
 
-            // Check if we've reached the end
             if (nextIndex >= this.mediaItems.length) {
                 if (this.slideshowSettings.loopSlideshow) {
-                    this.currentIndex = 0; // Loop back to beginning
+                    this.currentIndex = 0;
                 } else {
-                    this.stopSlideshow(); // Stop at the end
+                    this.stopSlideshow();
                     return;
                 }
             } else {
@@ -827,7 +701,6 @@ class SlideshowPlayer {
         const counter = document.getElementById('slideCounter');
         counter.textContent = `${this.currentIndex + 1} / ${this.mediaItems.length}`;
 
-        // Update video loop setting visibility
         this.updateVideoLoopSetting();
     }
 
@@ -858,12 +731,11 @@ class SlideshowPlayer {
         if (currentMedia.type !== 'video') return;
 
         const loopCount = parseInt(document.getElementById('videoLoopCount').value);
-        currentMedia.loopCount = loopCount;
 
         try {
-            await this.db.updateMedia(currentMedia);
+            await api.updateMedia(currentMedia.id, { loopCount: loopCount });
+            currentMedia.loopCount = loopCount;
 
-            // Visual feedback
             const saveBtn = document.getElementById('saveVideoLoopBtn');
             const originalText = saveBtn.textContent;
             saveBtn.textContent = 'Đã lưu!';
@@ -872,19 +744,7 @@ class SlideshowPlayer {
             }, 1500);
         } catch (error) {
             console.error('Lỗi khi lưu loop count:', error);
-        }
-    }
-
-    cleanupCurrentSlide() {
-        // Revoke all stored blob URLs
-        for (const [id, url] of this.blobURLs) {
-            this.db.revokeBlobURL(url);
-        }
-        this.blobURLs.clear();
-
-        // Clear interval
-        if (this.slideshowInterval) {
-            clearTimeout(this.slideshowInterval);
+            alert('Không thể lưu cài đặt loop!');
         }
     }
 }

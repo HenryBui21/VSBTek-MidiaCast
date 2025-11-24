@@ -9,25 +9,20 @@ class MediaCast {
         this.isPlaying = false;
         this.controlsTimeout = null;
         this.isSettingsPanelOpen = false;
-        this.db = new DatabaseManager();
-        this.blobURLs = new Map(); // Track blob URLs for cleanup
-        this.currentVideoLoopCount = 0; // Track current video loop count
-        this.isWaitingForVideo = false; // Flag to indicate waiting for video to finish
-        this.currentZoom = 1; // Track current zoom level
-        this.isAuthenticated = false; // Authentication status
-        this.currentUser = null; // Current logged in user
-        this.isInitialized = false; // Flag to prevent multiple initializations
-
-        // Server mode - will be determined after checking API availability
-        this.useServer = false;
-        this.isAuthReady = false; // Flag to indicate auth system is ready
-        this.initAuthPromise = null; // Promise for initAuth completion
+        this.currentVideoLoopCount = 0;
+        this.isWaitingForVideo = false;
+        this.currentZoom = 1;
+        this.isAuthenticated = false;
+        this.currentUser = null;
+        this.isInitialized = false;
+        this.isAuthReady = false;
+        this.initAuthPromise = null;
 
         // Slideshow settings
         this.slideshowSettings = {
             transitionEffect: 'fade',
-            slideDuration: 3000, // milliseconds
-            transitionSpeed: 600, // milliseconds
+            slideDuration: 3000,
+            transitionSpeed: 600,
             playOrder: 'sequential',
             autoPlay: true,
             loopSlideshow: true,
@@ -44,20 +39,8 @@ class MediaCast {
 
     async initApp() {
         try {
-            // Check if API server is available
-            if (typeof api !== 'undefined') {
-                this.useServer = await api.checkAvailability();
-            }
-
-            if (this.useServer) {
-                // Server mode - load from API
-                await this.loadFromServer();
-            } else {
-                // Local mode - use IndexedDB
-                await this.db.init();
-                await this.migrateFromLocalStorage();
-                await this.loadFromStorage();
-            }
+            // Server mode only - load from API
+            await this.loadFromServer();
 
             // Only initialize event listeners once
             if (!this.isInitialized) {
@@ -70,7 +53,7 @@ class MediaCast {
             this.renderGallery();
         } catch (error) {
             console.error('Lỗi khi khởi tạo ứng dụng:', error);
-            alert('Có lỗi khi khởi động ứng dụng. Vui lòng thử lại!');
+            alert('Có lỗi khi khởi động ứng dụng. Vui lòng đảm bảo server đang chạy!');
         }
     }
 
@@ -84,6 +67,7 @@ class MediaCast {
             }
         } catch (e) {
             console.error('Lỗi khi tải từ server:', e);
+            throw e;
         }
     }
 
@@ -131,7 +115,7 @@ class MediaCast {
         // File input change
         fileInput.addEventListener('change', (e) => {
             this.handleFiles(e.target.files);
-            fileInput.value = ''; // Reset input
+            fileInput.value = '';
         });
 
         // Drag and drop
@@ -223,10 +207,8 @@ class MediaCast {
             this.isSettingsPanelOpen = !this.isSettingsPanelOpen;
             slideshowSettingsPanel.classList.toggle('active');
 
-            // Always clear timeout first
             this.clearControlsTimeout();
 
-            // When closing settings panel, restart auto-hide countdown
             if (!this.isSettingsPanelOpen) {
                 this.resetControlsTimeout();
             }
@@ -254,7 +236,6 @@ class MediaCast {
             slideDurationValue.textContent = `${value}s`;
             this.saveSettings();
 
-            // Restart slideshow if playing
             if (this.isPlaying) {
                 this.stopSlideshow();
                 this.startSlideshow();
@@ -332,7 +313,6 @@ class MediaCast {
                 if (this.isSettingsPanelOpen) {
                     this.isSettingsPanelOpen = false;
                     slideshowSettingsPanel.classList.remove('active');
-                    // Clear and restart auto-hide countdown when closing settings panel
                     this.clearControlsTimeout();
                     this.resetControlsTimeout();
                 }
@@ -364,26 +344,8 @@ class MediaCast {
             }
 
             try {
-                if (this.useServer) {
-                    // Upload to server
-                    await api.uploadMedia(file, selectedCategory);
-                    await this.loadFromServer();
-                } else {
-                    // Local IndexedDB
-                    const mediaItem = {
-                        id: Date.now() + Math.random(),
-                        name: file.name,
-                        type: file.type.startsWith('image') ? 'image' : 'video',
-                        category: selectedCategory,
-                        blob: file,
-                        mimeType: file.type,
-                        uploadedAt: new Date().toISOString(),
-                        videoLoopCount: 1
-                    };
-
-                    await this.db.addMedia(mediaItem);
-                    await this.loadFromStorage();
-                }
+                await api.uploadMedia(file, selectedCategory);
+                await this.loadFromServer();
                 this.renderGallery();
             } catch (error) {
                 console.error('Lỗi khi thêm media:', error);
@@ -409,7 +371,6 @@ class MediaCast {
 
         container.innerHTML = allBtn + categoryBtns;
 
-        // Add event listeners
         container.querySelectorAll('.category-filter').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.currentCategory = btn.dataset.category;
@@ -454,12 +415,7 @@ class MediaCast {
             return;
         }
 
-        if (this.useServer) {
-            this.categories = await api.addCategory(categoryName);
-        } else {
-            this.categories.push(categoryName);
-            await this.saveCategories();
-        }
+        this.categories = await api.addCategory(categoryName);
         this.renderCategorySelect();
         this.renderCategoryFilters();
         this.renderCategoriesList();
@@ -479,21 +435,8 @@ class MediaCast {
             }
         }
 
-        if (this.useServer) {
-            this.categories = await api.deleteCategory(categoryName);
-            await this.loadFromServer();
-        } else {
-            // Move items to "Chung"
-            for (const item of this.mediaItems) {
-                if (item.category === categoryName) {
-                    item.category = 'Chung';
-                    await this.db.updateMedia(item);
-                }
-            }
-            this.categories = this.categories.filter(cat => cat !== categoryName);
-            await this.saveCategories();
-            await this.loadFromStorage();
-        }
+        this.categories = await api.deleteCategory(categoryName);
+        await this.loadFromServer();
         this.renderCategorySelect();
         this.renderCategoryFilters();
         this.renderCategoriesList();
@@ -503,21 +446,12 @@ class MediaCast {
     renderGallery() {
         const galleryGrid = document.getElementById('galleryGrid');
 
-        // Clean up old blob URLs (only for local mode)
-        if (!this.useServer) {
-            this.blobURLs.forEach(url => URL.revokeObjectURL(url));
-            this.blobURLs.clear();
-        }
-
-        // Filter items based on category and search
         let filteredItems = this.mediaItems;
 
-        // Filter by category
         if (this.currentCategory !== 'all') {
             filteredItems = filteredItems.filter(item => item.category === this.currentCategory);
         }
 
-        // Filter by search query
         if (this.searchQuery) {
             filteredItems = filteredItems.filter(item =>
                 item.name.toLowerCase().includes(this.searchQuery)
@@ -539,18 +473,7 @@ class MediaCast {
 
         galleryGrid.innerHTML = filteredItems.map((item) => {
             const originalIndex = this.mediaItems.indexOf(item);
-            let mediaURL;
-
-            if (this.useServer) {
-                // Server mode - use URL from server
-                mediaURL = api.getMediaURL(item);
-            } else {
-                // Local mode - create blob URL
-                mediaURL = URL.createObjectURL(item.blob);
-                this.blobURLs.set(item.id, mediaURL);
-            }
-
-            const itemId = this.useServer ? `'${item.id}'` : item.id;
+            const mediaURL = api.getMediaURL(item);
 
             return `
                 <div class="media-item" data-id="${item.id}" onclick="mediaApp.viewMedia(${originalIndex})">
@@ -565,7 +488,7 @@ class MediaCast {
                         </div>
                     </div>
                     <div class="media-item-actions">
-                        <button class="delete-btn" onclick="event.stopPropagation(); mediaApp.deleteMedia(${itemId})">
+                        <button class="delete-btn" onclick="event.stopPropagation(); mediaApp.deleteMedia('${item.id}')">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -579,13 +502,8 @@ class MediaCast {
 
     async deleteMedia(id) {
         try {
-            if (this.useServer) {
-                await api.deleteMedia(id);
-                await this.loadFromServer();
-            } else {
-                await this.db.deleteMedia(id);
-                await this.loadFromStorage();
-            }
+            await api.deleteMedia(id);
+            await this.loadFromServer();
             this.renderGallery();
             this.renderCategoryFilters();
         } catch (error) {
@@ -596,13 +514,8 @@ class MediaCast {
 
     async clearAll() {
         try {
-            if (this.useServer) {
-                await api.clearAllMedia();
-                await this.loadFromServer();
-            } else {
-                await this.db.clearAllMedia();
-                await this.loadFromStorage();
-            }
+            await api.clearAllMedia();
+            await this.loadFromServer();
             this.renderGallery();
             this.renderCategoryFilters();
         } catch (error) {
@@ -635,14 +548,11 @@ class MediaCast {
         this.stopSlideshow();
         this.clearControlsTimeout();
 
-        // Reset zoom
         this.currentZoom = 1;
 
-        // Pause any playing videos
         const videos = document.querySelectorAll('.slideshow-content video');
         videos.forEach(video => video.pause());
 
-        // Clear slideshow content to free memory
         const content = document.getElementById('slideshowContent');
         content.innerHTML = '';
     }
@@ -650,11 +560,9 @@ class MediaCast {
     setupSlideshowControls() {
         const modal = document.getElementById('slideshowModal');
 
-        // Show controls initially
         modal.classList.add('show-controls');
         this.resetControlsTimeout();
 
-        // Helper to show controls and reset timeout (only when settings panel is closed)
         const showAndResetControls = () => {
             if (!this.isSettingsPanelOpen) {
                 modal.classList.add('show-controls');
@@ -662,17 +570,12 @@ class MediaCast {
             }
         };
 
-        // Show controls on user interaction (mouse, touch, click)
-        // This ensures controls work on TV browsers where mousemove may not fire
         modal.addEventListener('mousemove', showAndResetControls);
         modal.addEventListener('click', showAndResetControls);
         modal.addEventListener('touchstart', showAndResetControls, { passive: true });
         modal.addEventListener('touchmove', showAndResetControls, { passive: true });
-
-        // Also listen for keyboard events (remote control on TV)
         modal.addEventListener('keydown', showAndResetControls);
 
-        // Hide controls after 3 seconds of inactivity
         modal.addEventListener('mouseleave', () => {
             if (!this.isSettingsPanelOpen) {
                 this.resetControlsTimeout();
@@ -683,19 +586,16 @@ class MediaCast {
     resetControlsTimeout() {
         const modal = document.getElementById('slideshowModal');
 
-        // Don't set auto-hide timeout if settings panel is open
         if (this.isSettingsPanelOpen) {
             return;
         }
 
-        // Debounce: only reset timeout if last interaction was more than 500ms ago
         const now = Date.now();
         if (this.lastControlsInteraction && (now - this.lastControlsInteraction) < 500) {
             return;
         }
         this.lastControlsInteraction = now;
 
-        // Clear existing timeout and set new one
         if (this.controlsTimeout) {
             clearTimeout(this.controlsTimeout);
         }
@@ -721,7 +621,6 @@ class MediaCast {
 
         this.currentSlideIndex = index;
 
-        // Wrap around
         if (this.currentSlideIndex < 0) {
             this.currentSlideIndex = this.mediaItems.length - 1;
         }
@@ -733,55 +632,33 @@ class MediaCast {
         const content = document.getElementById('slideshowContent');
         const counter = document.getElementById('slideshowCounter');
 
-        // Show/hide video loop setting
         this.updateVideoLoopSettingVisibility();
 
-        // Get media URL
-        let blobURL;
-        if (this.useServer) {
-            blobURL = api.getMediaURL(item);
-        } else {
-            // Reuse cached blob URL if available, otherwise create new one
-            blobURL = this.blobURLs.get(item.id);
-            if (!blobURL) {
-                blobURL = URL.createObjectURL(item.blob);
-                this.blobURLs.set(item.id, blobURL);
-            }
-        }
+        const mediaURL = api.getMediaURL(item);
 
-        // Update counter
         counter.textContent = `${this.currentSlideIndex + 1} / ${this.mediaItems.length}`;
 
         if (item.type === 'image') {
-            // Preload image before showing
             const img = new Image();
             img.onload = () => {
-                // Get existing elements
                 const existingElements = content.querySelectorAll('img, video');
 
-                // Create new image element with opacity 0
                 const newImg = document.createElement('img');
-                newImg.src = blobURL;
+                newImg.src = mediaURL;
                 newImg.alt = item.name;
                 newImg.className = 'slideshow-media';
                 newImg.style.opacity = '0';
                 newImg.style.objectFit = this.slideshowSettings.imageFit;
 
-                // Add to DOM
                 content.appendChild(newImg);
-
-                // Force reflow
                 void newImg.offsetHeight;
 
-                // Apply transition effect and fade in
                 requestAnimationFrame(() => {
-                    // Add transition effect class to content container
                     content.classList.remove('transition-fade', 'transition-slide', 'transition-zoom', 'transition-flip');
                     content.classList.add(`transition-${this.slideshowSettings.transitionEffect}`);
 
                     newImg.style.opacity = '1';
 
-                    // Fade out and remove old elements
                     existingElements.forEach(el => {
                         el.style.opacity = '0';
                         setTimeout(() => {
@@ -792,34 +669,28 @@ class MediaCast {
                     });
                 });
             };
-            img.src = blobURL;
+            img.src = mediaURL;
         } else {
-            // Get existing elements
             const existingElements = content.querySelectorAll('img, video');
 
-            // For videos
             const video = document.createElement('video');
-            video.src = blobURL;
+            video.src = mediaURL;
             video.controls = true;
             video.autoplay = true;
             video.className = 'slideshow-media';
             video.style.opacity = '0';
             video.style.objectFit = this.slideshowSettings.imageFit;
 
-            // Get video loop count (default to 1 if not set)
-            const loopCount = item.videoLoopCount || 1;
+            const loopCount = item.videoLoopCount || item.loopCount || 1;
             this.currentVideoLoopCount = 0;
 
-            // Handle video ended event
             video.addEventListener('ended', () => {
                 this.currentVideoLoopCount++;
 
                 if (this.currentVideoLoopCount < loopCount) {
-                    // Play again if we haven't reached loop count
                     video.currentTime = 0;
                     video.play();
                 } else {
-                    // Move to next slide after all loops complete
                     if (this.isPlaying) {
                         this.nextSlide();
                     }
@@ -830,13 +701,11 @@ class MediaCast {
             void video.offsetHeight;
 
             requestAnimationFrame(() => {
-                // Add transition effect class to content container
                 content.classList.remove('transition-fade', 'transition-slide', 'transition-zoom', 'transition-flip');
                 content.classList.add(`transition-${this.slideshowSettings.transitionEffect}`);
 
                 video.style.opacity = '1';
 
-                // Fade out and remove old elements
                 existingElements.forEach(el => {
                     if (el.tagName === 'VIDEO') {
                         el.pause();
@@ -853,12 +722,12 @@ class MediaCast {
     }
 
     previousSlide() {
-        this.currentZoom = 1; // Reset zoom when changing slide
+        this.currentZoom = 1;
         this.showSlide(this.currentSlideIndex - 1);
     }
 
     nextSlide() {
-        this.currentZoom = 1; // Reset zoom when changing slide
+        this.currentZoom = 1;
         this.showSlide(this.currentSlideIndex + 1);
     }
 
@@ -880,12 +749,10 @@ class MediaCast {
     startSlideshow() {
         this.isPlaying = true;
         this.slideshowInterval = setInterval(() => {
-            // Only auto-advance for images, not videos
             const currentItem = this.mediaItems[this.currentSlideIndex];
             if (currentItem && currentItem.type === 'image') {
                 this.nextSlide();
             }
-            // Videos will advance automatically when they finish (handled in showSlide)
         }, this.slideshowSettings.slideDuration);
     }
 
@@ -929,7 +796,6 @@ class MediaCast {
         const nextBtn = document.getElementById('slideshowNextBtn');
         const playPauseBtn = document.getElementById('slideshowPlayPauseBtn');
         const zoomControls = document.querySelector('.slideshow-zoom-controls');
-        // Keep settings button always visible so user can re-enable controls
 
         if (!this.slideshowSettings.showControls) {
             if (prevBtn) prevBtn.style.display = 'none';
@@ -951,7 +817,7 @@ class MediaCast {
 
         if (currentItem && currentItem.type === 'video') {
             videoLoopSetting.style.display = 'block';
-            currentVideoLoopCount.value = currentItem.videoLoopCount || 1;
+            currentVideoLoopCount.value = currentItem.videoLoopCount || currentItem.loopCount || 1;
         } else {
             videoLoopSetting.style.display = 'none';
         }
@@ -969,19 +835,23 @@ class MediaCast {
             return;
         }
 
-        currentItem.videoLoopCount = loopCount;
-        await this.db.updateMedia(currentItem);
-        await this.loadFromStorage();
-        alert('Đã lưu cài đặt loop!');
+        try {
+            await api.updateMedia(currentItem.id, { loopCount: loopCount });
+            await this.loadFromServer();
+            alert('Đã lưu cài đặt loop!');
+        } catch (error) {
+            console.error('Lỗi khi lưu loop:', error);
+            alert('Không thể lưu cài đặt loop!');
+        }
     }
 
     zoomIn() {
-        this.currentZoom = Math.min(this.currentZoom + 0.25, 3); // Max zoom 3x
+        this.currentZoom = Math.min(this.currentZoom + 0.25, 3);
         this.applyZoom();
     }
 
     zoomOut() {
-        this.currentZoom = Math.max(this.currentZoom - 0.25, 0.5); // Min zoom 0.5x
+        this.currentZoom = Math.max(this.currentZoom - 0.25, 0.5);
         this.applyZoom();
     }
 
@@ -1002,11 +872,7 @@ class MediaCast {
 
     async saveSettings() {
         try {
-            if (this.useServer) {
-                await api.updateSettings(this.slideshowSettings);
-            } else {
-                await this.db.saveSetting('slideshow_settings', this.slideshowSettings);
-            }
+            await api.updateSettings(this.slideshowSettings);
         } catch (e) {
             console.error('Lỗi khi lưu settings:', e);
         }
@@ -1014,7 +880,7 @@ class MediaCast {
 
     async loadSettings() {
         try {
-            const stored = await this.db.getSetting('slideshow_settings');
+            const stored = await api.getSettings();
             if (stored) {
                 this.slideshowSettings = { ...this.slideshowSettings, ...stored };
             }
@@ -1055,126 +921,68 @@ class MediaCast {
         }
     }
 
-    async saveCategories() {
-        try {
-            await this.db.saveCategories(this.categories);
-        } catch (e) {
-            console.error('Lỗi khi lưu categories:', e);
-        }
-    }
-
-    async loadFromStorage() {
-        try {
-            // Load media items
-            this.mediaItems = await this.db.getAllMedia();
-
-            // Migration: Add videoLoopCount to existing videos
-            let needsUpdate = false;
-            for (const item of this.mediaItems) {
-                if (item.type === 'video' && !item.videoLoopCount) {
-                    item.videoLoopCount = 1;
-                    needsUpdate = true;
-                }
-            }
-
-            // Save updates if needed
-            if (needsUpdate) {
-                for (const item of this.mediaItems) {
-                    if (item.type === 'video' && item.videoLoopCount) {
-                        await this.db.updateMedia(item);
-                    }
-                }
-            }
-
-            // Load categories
-            const storedCategories = await this.db.getCategories();
-            if (storedCategories && storedCategories.length > 0) {
-                this.categories = storedCategories;
-            }
-        } catch (e) {
-            console.error('Lỗi khi tải từ IndexedDB:', e);
-        }
-    }
-
     // Authentication methods
     async initAuth() {
         try {
-            // Check if API server is available first
+            // Check if API server is available
             if (typeof api !== 'undefined') {
-                this.useServer = await api.checkAvailability();
+                const isAvailable = await api.checkAvailability();
+                if (!isAvailable) {
+                    alert('Không thể kết nối đến server. Vui lòng đảm bảo server đang chạy!');
+                    this.showLoginModal();
+                    return;
+                }
             }
 
-            if (!this.useServer) {
-                await this.db.init();
-            }
-
-            this.isAuthReady = true; // Mark auth system as ready
+            this.isAuthReady = true;
             await this.checkUsersExist();
             await this.checkAuth();
         } catch (error) {
             console.error('Lỗi khởi tạo auth:', error);
-            this.isAuthReady = true; // Still mark as ready so user can try again
+            this.isAuthReady = true;
             this.showLoginModal();
         }
     }
 
     async checkUsersExist() {
-        // Check if any users exist, update login hint accordingly
-        let usersCount;
-        let adminInitialized;
-        if (this.useServer) {
-            usersCount = await api.getUsersCount();
-            adminInitialized = await api.getAdminInitialized();
-        } else {
-            // Ensure db is initialized
-            if (!this.db.db) {
-                await this.db.init();
+        try {
+            const usersCount = await api.getUsersCount();
+            const adminInitialized = await api.getAdminInitialized();
+
+            const loginHint = document.getElementById('loginHint');
+            if (usersCount === 0 && !adminInitialized) {
+                loginHint.textContent = 'Lần đầu sử dụng? Nhập thông tin để tạo tài khoản admin.';
+                loginHint.style.color = '';
+            } else if (usersCount === 0 && adminInitialized) {
+                loginHint.textContent = 'Không có tài khoản nào. Vui lòng liên hệ quản trị viên.';
+                loginHint.style.color = '#e74c3c';
+            } else {
+                loginHint.textContent = '';
             }
-            usersCount = await this.db.getUsersCount();
-            adminInitialized = await this.db.getSetting('admin_initialized');
-        }
-        const loginHint = document.getElementById('loginHint');
-        if (usersCount === 0 && !adminInitialized) {
-            loginHint.textContent = 'Lần đầu sử dụng? Nhập thông tin để tạo tài khoản admin.';
-        } else if (usersCount === 0 && adminInitialized) {
-            loginHint.textContent = 'Không có tài khoản nào. Vui lòng liên hệ quản trị viên.';
-            loginHint.style.color = '#e74c3c';
-        } else {
-            loginHint.textContent = '';
+        } catch (error) {
+            console.error('Lỗi khi kiểm tra users:', error);
         }
     }
 
     async checkAuth() {
-        // Check if user is authenticated
         const sessionAuth = sessionStorage.getItem('mediacast_auth');
         const sessionUserId = sessionStorage.getItem('mediacast_user_id');
 
         if (sessionAuth === 'true' && sessionUserId) {
-            let user = null;
-            if (this.useServer) {
-                // Server mode - get user from API
-                try {
-                    const users = await api.getAllUsers();
-                    user = users.find(u => u.id === sessionUserId);
-                } catch (e) {
-                    console.error('Lỗi khi lấy user từ server:', e);
-                }
-            } else {
-                // Local mode - get user from IndexedDB
-                // Ensure db is initialized
-                if (!this.db.db) {
-                    await this.db.init();
-                }
-                user = await this.db.getUserById(parseInt(sessionUserId));
-            }
+            try {
+                const users = await api.getAllUsers();
+                const user = users.find(u => u.id === sessionUserId);
 
-            if (user) {
-                this.isAuthenticated = true;
-                this.currentUser = user;
-                this.hideLoginModal();
-                this.updateUserDisplay();
-                await this.initApp();
-                return;
+                if (user) {
+                    this.isAuthenticated = true;
+                    this.currentUser = user;
+                    this.hideLoginModal();
+                    this.updateUserDisplay();
+                    await this.initApp();
+                    return;
+                }
+            } catch (e) {
+                console.error('Lỗi khi lấy user từ server:', e);
             }
         }
         this.showLoginModal();
@@ -1198,20 +1006,17 @@ class MediaCast {
             this.handleLogout();
         });
 
-        // Logo click to toggle dropdown menu
         headerLogo.addEventListener('click', (e) => {
             e.stopPropagation();
             userDropdownMenu.classList.toggle('active');
         });
 
-        // Close dropdown when clicking outside
         document.addEventListener('click', (e) => {
             if (!userDropdownMenu.contains(e.target) && e.target !== headerLogo) {
                 userDropdownMenu.classList.remove('active');
             }
         });
 
-        // User management listeners
         manageUsersBtn.addEventListener('click', () => {
             this.closeDropdownMenu();
             this.openUserModal();
@@ -1222,7 +1027,6 @@ class MediaCast {
             this.openChangePasswordModal();
         });
 
-        // User modal listeners
         document.getElementById('closeUserModal').addEventListener('click', () => {
             document.getElementById('userModal').classList.remove('active');
         });
@@ -1231,7 +1035,6 @@ class MediaCast {
             this.addNewUser();
         });
 
-        // Change password modal listeners
         document.getElementById('closeChangePasswordModal').addEventListener('click', () => {
             document.getElementById('changePasswordModal').classList.remove('active');
         });
@@ -1241,7 +1044,6 @@ class MediaCast {
             await this.handleChangePassword();
         });
 
-        // Edit user modal listeners
         document.getElementById('closeEditUserModal').addEventListener('click', () => {
             document.getElementById('editUserModal').classList.remove('active');
         });
@@ -1263,7 +1065,6 @@ class MediaCast {
             return;
         }
 
-        // Wait for auth system to be ready
         if (!this.isAuthReady) {
             if (this.initAuthPromise) {
                 await this.initAuthPromise;
@@ -1276,75 +1077,29 @@ class MediaCast {
 
         try {
             const passwordHash = await this.hashPassword(password);
+            const result = await api.login(username, passwordHash);
 
-            if (this.useServer) {
-                // Server mode - use API
-                const result = await api.login(username, passwordHash);
-                if (result.success) {
-                    this.authenticateUser(result.user);
-                    if (result.isNewUser) {
-                        alert('Tài khoản admin đã được tạo thành công!');
-                    }
-                } else {
-                    alert(result.error || 'Đăng nhập thất bại!');
-                    if (result.error === 'Tên đăng nhập không tồn tại!') {
-                        usernameInput.focus();
-                    } else {
-                        passwordInput.value = '';
-                        passwordInput.focus();
-                    }
+            if (result.success) {
+                this.authenticateUser(result.user);
+                if (result.isNewUser) {
+                    alert('Tài khoản admin đã được tạo thành công!');
                 }
             } else {
-                // Local mode - use IndexedDB
-                // Ensure db is initialized
-                if (!this.db.db) {
-                    await this.db.init();
-                }
-                const usersCount = await this.db.getUsersCount();
-                const adminInitialized = await this.db.getSetting('admin_initialized');
-
-                if (usersCount === 0 && !adminInitialized) {
-                    // First time setup - create admin user
-                    const newUser = {
-                        username: username,
-                        passwordHash: passwordHash,
-                        role: 'admin',
-                        createdAt: new Date().toISOString()
-                    };
-                    await this.db.addUser(newUser);
-                    await this.db.saveSetting('admin_initialized', true); // Mark admin as initialized
-                    const user = await this.db.getUserByUsername(username);
-                    this.authenticateUser(user);
-                    alert('Tài khoản admin đã được tạo thành công!');
-                } else if (usersCount === 0 && adminInitialized) {
-                    // Admin was created before but users are gone - don't allow new admin
-                    alert('Không có tài khoản nào. Vui lòng liên hệ quản trị viên để khôi phục dữ liệu!');
+                alert(result.error || 'Đăng nhập thất bại!');
+                if (result.error === 'Tên đăng nhập không tồn tại!') {
+                    usernameInput.focus();
                 } else {
-                    // Verify credentials
-                    const user = await this.db.getUserByUsername(username);
-                    if (!user) {
-                        alert('Tên đăng nhập không tồn tại!');
-                        usernameInput.focus();
-                        return;
-                    }
-
-                    if (passwordHash === user.passwordHash) {
-                        this.authenticateUser(user);
-                    } else {
-                        alert('Mật khẩu không đúng!');
-                        passwordInput.value = '';
-                        passwordInput.focus();
-                    }
+                    passwordInput.value = '';
+                    passwordInput.focus();
                 }
             }
         } catch (error) {
             console.error('Lỗi khi xác thực:', error);
-            alert('Có lỗi xảy ra khi đăng nhập!');
+            alert('Có lỗi xảy ra khi đăng nhập. Vui lòng kiểm tra kết nối server!');
         }
     }
 
     async hashPassword(password) {
-        // Check if crypto.subtle is available (requires secure context: HTTPS or localhost)
         if (window.crypto && window.crypto.subtle) {
             const encoder = new TextEncoder();
             const data = encoder.encode(password);
@@ -1352,15 +1107,12 @@ class MediaCast {
             const hashArray = Array.from(new Uint8Array(hashBuffer));
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         } else {
-            // Fallback: Simple hash for non-secure contexts (HTTP)
-            // Note: This is less secure but works on HTTP
             let hash = 0;
             for (let i = 0; i < password.length; i++) {
                 const char = password.charCodeAt(i);
                 hash = ((hash << 5) - hash) + char;
-                hash = hash & hash; // Convert to 32bit integer
+                hash = hash & hash;
             }
-            // Convert to hex and add salt for better security
             const salt = 'vsbtek_mediacast_2024';
             const saltedPassword = password + salt;
             let hash2 = 5381;
@@ -1389,7 +1141,6 @@ class MediaCast {
             const roleText = this.currentUser.role === 'admin' ? 'Admin' : 'User';
             currentUserSpan.textContent = `${this.currentUser.username} (${roleText})`;
 
-            // Show manage users button only for admin
             if (this.currentUser.role === 'admin') {
                 manageUsersBtn.style.display = 'inline-block';
             } else {
@@ -1405,7 +1156,6 @@ class MediaCast {
             sessionStorage.removeItem('mediacast_auth');
             sessionStorage.removeItem('mediacast_user_id');
             this.showLoginModal();
-            // Clear content
             document.getElementById('galleryGrid').innerHTML = '<div class="empty-state"><p>Vui lòng đăng nhập để xem nội dung</p></div>';
         }
     }
@@ -1414,7 +1164,6 @@ class MediaCast {
         const loginModal = document.getElementById('loginModal');
         loginModal.classList.add('active');
         document.body.classList.add('locked');
-        // Focus on username input
         setTimeout(() => {
             document.getElementById('loginUsername').focus();
         }, 100);
@@ -1428,7 +1177,6 @@ class MediaCast {
         document.getElementById('loginPassword').value = '';
     }
 
-    // Dropdown Menu
     closeDropdownMenu() {
         document.getElementById('userDropdownMenu').classList.remove('active');
     }
@@ -1448,14 +1196,12 @@ class MediaCast {
             const input = document.getElementById('shareLinkInput');
             try {
                 await navigator.clipboard.writeText(input.value);
-                // Visual feedback
                 const originalText = copyBtn.textContent;
                 copyBtn.textContent = 'Đã sao chép!';
                 setTimeout(() => {
                     copyBtn.textContent = originalText;
                 }, 2000);
             } catch (err) {
-                // Fallback for older browsers
                 input.select();
                 document.execCommand('copy');
             }
@@ -1475,13 +1221,10 @@ class MediaCast {
         const modal = document.getElementById('shareLinkModal');
         const categorySelect = document.getElementById('shareLinkCategory');
 
-        // Populate category select
         categorySelect.innerHTML = '<option value="all">Tất cả</option>' +
             this.categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
 
-        // Generate initial link
         this.updateShareLink();
-
         modal.classList.add('active');
     }
 
@@ -1489,7 +1232,6 @@ class MediaCast {
         const category = document.getElementById('shareLinkCategory').value;
         const input = document.getElementById('shareLinkInput');
 
-        // Build slideshow URL
         const baseUrl = window.location.origin + window.location.pathname.replace('index.html', '');
         let slideshowUrl = `${baseUrl}slideshow.html`;
 
@@ -1512,7 +1254,7 @@ class MediaCast {
 
     async renderUsersList() {
         const container = document.getElementById('usersList');
-        const users = this.useServer ? await api.getAllUsers() : await this.db.getAllUsers();
+        const users = await api.getAllUsers();
 
         container.innerHTML = users.map(user => {
             const isCurrentUser = user.id === this.currentUser?.id;
@@ -1573,19 +1315,8 @@ class MediaCast {
                 createdAt: new Date().toISOString()
             };
 
-            if (this.useServer) {
-                await api.addUser(newUser);
-            } else {
-                // Check if username already exists (local mode)
-                const existingUser = await this.db.getUserByUsername(username);
-                if (existingUser) {
-                    alert('Tên đăng nhập đã tồn tại!');
-                    return;
-                }
-                await this.db.addUser(newUser);
-            }
+            await api.addUser(newUser);
 
-            // Clear inputs
             usernameInput.value = '';
             passwordInput.value = '';
             roleSelect.value = 'user';
@@ -1609,11 +1340,7 @@ class MediaCast {
         }
 
         try {
-            if (this.useServer) {
-                await api.deleteUser(userId);
-            } else {
-                await this.db.deleteUser(userId);
-            }
+            await api.deleteUser(userId);
             this.renderUsersList();
             alert('Đã xóa người dùng thành công!');
         } catch (error) {
@@ -1623,7 +1350,7 @@ class MediaCast {
     }
 
     async openEditUserModal(userId) {
-        const user = this.useServer ? await api.getUserById(userId) : await this.db.getUserById(userId);
+        const user = await api.getUserById(userId);
         if (!user) {
             alert('Không tìm thấy người dùng!');
             return;
@@ -1638,36 +1365,25 @@ class MediaCast {
     }
 
     async handleEditUser() {
-        const userId = parseInt(document.getElementById('editUserId').value);
+        const userId = document.getElementById('editUserId').value;
         const role = document.getElementById('editUserRole').value;
         const newPassword = document.getElementById('editUserPassword').value;
 
         try {
-            const user = this.useServer ? await api.getUserById(userId) : await this.db.getUserById(userId);
-            if (!user) {
-                alert('Không tìm thấy người dùng!');
-                return;
-            }
-
-            user.role = role;
+            const updates = { role: role };
 
             if (newPassword) {
                 if (newPassword.length < 4) {
                     alert('Mật khẩu phải có ít nhất 4 ký tự!');
                     return;
                 }
-                user.passwordHash = await this.hashPassword(newPassword);
+                updates.passwordHash = await this.hashPassword(newPassword);
             }
 
-            if (this.useServer) {
-                await api.updateUser(userId, { role: user.role, passwordHash: user.passwordHash });
-            } else {
-                await this.db.updateUser(user);
-            }
+            await api.updateUser(userId, updates);
 
-            // Update current user if editing self
             if (userId === this.currentUser?.id) {
-                this.currentUser = user;
+                this.currentUser.role = role;
                 this.updateUserDisplay();
             }
 
@@ -1709,76 +1425,21 @@ class MediaCast {
         }
 
         try {
-            // Verify current password
             const currentHash = await this.hashPassword(currentPassword);
             if (currentHash !== this.currentUser.passwordHash) {
                 alert('Mật khẩu hiện tại không đúng!');
                 return;
             }
 
-            // Update password
             const newHash = await this.hashPassword(newPassword);
+            await api.updateUser(this.currentUser.id, { passwordHash: newHash });
             this.currentUser.passwordHash = newHash;
-            await this.db.updateUser(this.currentUser);
 
             document.getElementById('changePasswordModal').classList.remove('active');
             alert('Đã đổi mật khẩu thành công!');
         } catch (error) {
             console.error('Lỗi khi đổi mật khẩu:', error);
             alert('Có lỗi xảy ra khi đổi mật khẩu!');
-        }
-    }
-
-    async migrateFromLocalStorage() {
-        try {
-            // Check if migration has already been done
-            const migrated = await this.db.getSetting('migrated_from_localstorage');
-            if (migrated) {
-                return;
-            }
-
-            // Check if there's data in localStorage
-            const storedItems = localStorage.getItem('mediacast_items');
-            const storedCategories = localStorage.getItem('mediacast_categories');
-
-            if (storedItems) {
-                const items = JSON.parse(storedItems);
-
-                for (const item of items) {
-                    // Convert base64 data URL to Blob
-                    if (item.data && item.data.startsWith('data:')) {
-                        const response = await fetch(item.data);
-                        const blob = await response.blob();
-
-                        const newItem = {
-                            id: item.id,
-                            name: item.name,
-                            type: item.type,
-                            category: item.category || 'Chung',
-                            blob: blob,
-                            mimeType: blob.type,
-                            uploadedAt: item.uploadedAt || new Date().toISOString()
-                        };
-
-                        await this.db.addMedia(newItem);
-                    }
-                }
-            }
-
-            if (storedCategories) {
-                const categories = JSON.parse(storedCategories);
-                await this.db.saveCategories(categories);
-            }
-
-            // Mark migration as complete
-            await this.db.saveSetting('migrated_from_localstorage', true);
-
-            // Optional: Clear localStorage after successful migration
-            // localStorage.removeItem('mediacast_items');
-            // localStorage.removeItem('mediacast_categories');
-
-        } catch (e) {
-            console.error('Lỗi khi migrate từ LocalStorage:', e);
         }
     }
 }

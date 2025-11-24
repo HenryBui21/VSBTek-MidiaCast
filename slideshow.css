@@ -111,7 +111,7 @@ body {
     transition: opacity 0.3s ease;
 }
 
-.slideshow-container:hover .slideshow-controls,
+/* NOTE: :hover removed - causes issues on TV where cursor is always visible */
 .slideshow-controls.visible {
     opacity: 1;
 }
@@ -165,7 +165,7 @@ body {
     transition: opacity 0.3s ease;
 }
 
-.slideshow-container:hover .zoom-controls,
+/* NOTE: :hover removed - causes issues on TV where cursor is always visible */
 .zoom-controls.visible {
     opacity: 1;
 }
@@ -201,7 +201,7 @@ body {
     backdrop-filter: blur(10px);
 }
 
-.slideshow-container:hover .settings-btn,
+/* NOTE: :hover removed - causes issues on TV where cursor is always visible */
 .settings-btn.visible {
     opacity: 1;
 }
@@ -444,7 +444,7 @@ body {
     transition: opacity 0.3s ease;
 }
 
-.slideshow-container:hover .slideshow-info,
+/* NOTE: :hover removed - causes issues on TV where cursor is always visible */
 .slideshow-info.visible {
     opacity: 1;
 }
