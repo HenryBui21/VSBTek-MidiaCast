@@ -23,7 +23,8 @@ if (!fs.existsSync(DATA_FILE)) {
             transitionEffect: 'fade',
             transitionSpeed: 600
         },
-        users: []
+        users: [],
+        adminInitialized: false // Flag to track if admin has ever been created
     }, null, 2));
 }
 
@@ -418,6 +419,13 @@ function handleAPI(req, res, pathname, query) {
         return;
     }
 
+    // GET /api/admin-initialized - Check if admin has been initialized
+    if (pathname === '/api/admin-initialized' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ initialized: data.adminInitialized || false }));
+        return;
+    }
+
     // POST /api/users - Add user
     if (pathname === '/api/users' && req.method === 'POST') {
         let body = '';
@@ -456,8 +464,9 @@ function handleAPI(req, res, pathname, query) {
             try {
                 const { username, passwordHash } = JSON.parse(body);
 
-                // If no users exist, create admin user
-                if (data.users.length === 0) {
+                // Only allow creating first admin if adminInitialized is false
+                // This prevents creating new admin when data.json is reset but admin was previously created
+                if (data.users.length === 0 && !data.adminInitialized) {
                     const newUser = {
                         id: generateId(),
                         username: username,
@@ -466,6 +475,7 @@ function handleAPI(req, res, pathname, query) {
                         createdAt: new Date().toISOString()
                     };
                     data.users.push(newUser);
+                    data.adminInitialized = true; // Mark that admin has been initialized
                     saveData(data);
 
                     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -473,6 +483,16 @@ function handleAPI(req, res, pathname, query) {
                         success: true,
                         isNewUser: true,
                         user: { id: newUser.id, username: newUser.username, role: newUser.role }
+                    }));
+                    return;
+                }
+
+                // If no users but admin was initialized before, don't allow new admin creation
+                if (data.users.length === 0 && data.adminInitialized) {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        success: false,
+                        error: 'Không có tài khoản nào. Vui lòng liên hệ quản trị viên để khôi phục dữ liệu!'
                     }));
                     return;
                 }

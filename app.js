@@ -8,6 +8,7 @@ class MediaCast {
         this.slideshowInterval = null;
         this.isPlaying = false;
         this.controlsTimeout = null;
+        this.isSettingsPanelOpen = false;
         this.db = new DatabaseManager();
         this.blobURLs = new Map(); // Track blob URLs for cleanup
         this.currentVideoLoopCount = 0; // Track current video loop count
@@ -219,7 +220,27 @@ class MediaCast {
         // Slideshow settings
         slideshowSettingsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            this.isSettingsPanelOpen = !this.isSettingsPanelOpen;
             slideshowSettingsPanel.classList.toggle('active');
+
+            // When closing settings panel, restart auto-hide countdown
+            if (!this.isSettingsPanelOpen) {
+                this.resetControlsTimeout();
+            } else {
+                // When opening settings, clear timeout so controls stay visible
+                this.clearControlsTimeout();
+            }
+        });
+
+        // Prevent clicks inside settings panel from bubbling up
+        slideshowSettingsPanel.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        slideshowSettingsPanel.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+        }, { passive: true });
+        slideshowSettingsPanel.addEventListener('mousemove', (e) => {
+            e.stopPropagation();
         });
 
         transitionEffect.addEventListener('change', (e) => {
@@ -308,7 +329,12 @@ class MediaCast {
         slideshowModal.addEventListener('click', (e) => {
             if (!slideshowSettingsPanel.contains(e.target) &&
                 !slideshowSettingsBtn.contains(e.target)) {
-                slideshowSettingsPanel.classList.remove('active');
+                if (this.isSettingsPanelOpen) {
+                    this.isSettingsPanelOpen = false;
+                    slideshowSettingsPanel.classList.remove('active');
+                    // Restart auto-hide countdown when closing settings panel
+                    this.resetControlsTimeout();
+                }
             }
         });
 
@@ -604,6 +630,7 @@ class MediaCast {
         modal.classList.remove('active');
         modal.classList.remove('show-controls');
         settingsPanel.classList.remove('active');
+        this.isSettingsPanelOpen = false;
         this.stopSlideshow();
         this.clearControlsTimeout();
 
@@ -626,20 +653,40 @@ class MediaCast {
         modal.classList.add('show-controls');
         this.resetControlsTimeout();
 
-        // Show controls on mouse move
-        modal.addEventListener('mousemove', () => {
-            modal.classList.add('show-controls');
-            this.resetControlsTimeout();
-        });
+        // Helper to show controls and reset timeout (only when settings panel is closed)
+        const showAndResetControls = () => {
+            if (!this.isSettingsPanelOpen) {
+                modal.classList.add('show-controls');
+                this.resetControlsTimeout();
+            }
+        };
+
+        // Show controls on user interaction (mouse, touch, click)
+        // This ensures controls work on TV browsers where mousemove may not fire
+        modal.addEventListener('mousemove', showAndResetControls);
+        modal.addEventListener('click', showAndResetControls);
+        modal.addEventListener('touchstart', showAndResetControls, { passive: true });
+        modal.addEventListener('touchmove', showAndResetControls, { passive: true });
+
+        // Also listen for keyboard events (remote control on TV)
+        modal.addEventListener('keydown', showAndResetControls);
 
         // Hide controls after 3 seconds of inactivity
         modal.addEventListener('mouseleave', () => {
-            this.resetControlsTimeout();
+            if (!this.isSettingsPanelOpen) {
+                this.resetControlsTimeout();
+            }
         });
     }
 
     resetControlsTimeout() {
         const modal = document.getElementById('slideshowModal');
+
+        // Don't set auto-hide timeout if settings panel is open
+        if (this.isSettingsPanelOpen) {
+            return;
+        }
+
         this.clearControlsTimeout();
 
         this.controlsTimeout = setTimeout(() => {
@@ -1059,18 +1106,24 @@ class MediaCast {
     async checkUsersExist() {
         // Check if any users exist, update login hint accordingly
         let usersCount;
+        let adminInitialized;
         if (this.useServer) {
             usersCount = await api.getUsersCount();
+            adminInitialized = await api.getAdminInitialized();
         } else {
             // Ensure db is initialized
             if (!this.db.db) {
                 await this.db.init();
             }
             usersCount = await this.db.getUsersCount();
+            adminInitialized = await this.db.getSetting('admin_initialized');
         }
         const loginHint = document.getElementById('loginHint');
-        if (usersCount === 0) {
+        if (usersCount === 0 && !adminInitialized) {
             loginHint.textContent = 'Lần đầu sử dụng? Nhập thông tin để tạo tài khoản admin.';
+        } else if (usersCount === 0 && adminInitialized) {
+            loginHint.textContent = 'Không có tài khoản nào. Vui lòng liên hệ quản trị viên.';
+            loginHint.style.color = '#e74c3c';
         } else {
             loginHint.textContent = '';
         }
@@ -1233,8 +1286,9 @@ class MediaCast {
                     await this.db.init();
                 }
                 const usersCount = await this.db.getUsersCount();
+                const adminInitialized = await this.db.getSetting('admin_initialized');
 
-                if (usersCount === 0) {
+                if (usersCount === 0 && !adminInitialized) {
                     // First time setup - create admin user
                     const newUser = {
                         username: username,
@@ -1243,9 +1297,13 @@ class MediaCast {
                         createdAt: new Date().toISOString()
                     };
                     await this.db.addUser(newUser);
+                    await this.db.saveSetting('admin_initialized', true); // Mark admin as initialized
                     const user = await this.db.getUserByUsername(username);
                     this.authenticateUser(user);
                     alert('Tài khoản admin đã được tạo thành công!');
+                } else if (usersCount === 0 && adminInitialized) {
+                    // Admin was created before but users are gone - don't allow new admin
+                    alert('Không có tài khoản nào. Vui lòng liên hệ quản trị viên để khôi phục dữ liệu!');
                 } else {
                     // Verify credentials
                     const user = await this.db.getUserByUsername(username);

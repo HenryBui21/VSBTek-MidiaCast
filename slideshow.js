@@ -23,6 +23,7 @@ class SlideshowPlayer {
         };
         this.slideshowInterval = null;
         this.controlsTimeout = null;
+        this.isSettingsPanelOpen = false;
 
         // Server mode - will be determined after checking API availability
         this.useServer = false;
@@ -126,7 +127,30 @@ class SlideshowPlayer {
 
         settingsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
+            this.isSettingsPanelOpen = !this.isSettingsPanelOpen;
             settingsPanel.classList.toggle('active');
+
+            // When closing settings panel, restart auto-hide countdown
+            if (!this.isSettingsPanelOpen) {
+                this.startAutoHideControls();
+            } else {
+                // When opening settings, clear timeout so controls stay visible
+                if (this.controlsTimeout) {
+                    clearTimeout(this.controlsTimeout);
+                    this.controlsTimeout = null;
+                }
+            }
+        });
+
+        // Prevent clicks inside settings panel from bubbling up
+        settingsPanel.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        settingsPanel.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+        }, { passive: true });
+        settingsPanel.addEventListener('mousemove', (e) => {
+            e.stopPropagation();
         });
 
         transitionEffect.addEventListener('change', (e) => {
@@ -213,7 +237,12 @@ class SlideshowPlayer {
         // Close settings panel when clicking outside
         document.addEventListener('click', (e) => {
             if (!settingsPanel.contains(e.target) && !settingsBtn.contains(e.target)) {
-                settingsPanel.classList.remove('active');
+                if (this.isSettingsPanelOpen) {
+                    this.isSettingsPanelOpen = false;
+                    settingsPanel.classList.remove('active');
+                    // Restart auto-hide countdown when closing settings panel
+                    this.startAutoHideControls();
+                }
             }
         });
 
@@ -243,9 +272,24 @@ class SlideshowPlayer {
             }
         });
 
-        // Show controls on mouse move
+        // Show controls on user interaction (mouse, touch, click)
+        // This ensures controls work on TV browsers where mousemove may not fire
         const container = document.getElementById('slideshowContainer');
-        container.addEventListener('mousemove', () => this.showControls());
+
+        // Helper to show controls only when settings panel is closed
+        const showControlsIfNotInSettings = () => {
+            if (!this.isSettingsPanelOpen) {
+                this.showControls();
+            }
+        };
+
+        container.addEventListener('mousemove', showControlsIfNotInSettings);
+        container.addEventListener('click', showControlsIfNotInSettings);
+        container.addEventListener('touchstart', showControlsIfNotInSettings, { passive: true });
+        container.addEventListener('touchmove', showControlsIfNotInSettings, { passive: true });
+
+        // Also listen on document for remote control navigation on TV
+        document.addEventListener('keydown', showControlsIfNotInSettings);
 
         // Initialize settings values
         this.updateSettingsUI();
@@ -331,6 +375,11 @@ class SlideshowPlayer {
         info.classList.add('visible');
         zoomControls.classList.add('visible');
         settingsBtn.classList.add('visible');
+
+        // Don't set auto-hide timeout if settings panel is open
+        if (this.isSettingsPanelOpen) {
+            return;
+        }
 
         // Clear existing timeout
         if (this.controlsTimeout) {
@@ -500,7 +549,37 @@ class SlideshowPlayer {
         this.isPlaying = true;
         this.updatePlayPauseButton();
         this.showSlide(this.currentIndex);
+        // Show controls initially then auto-hide after 3s
+        // This ensures controls hide on TV even without mouse movement
         this.showControls();
+        this.startAutoHideControls();
+    }
+
+    // Auto-hide controls after delay - works independently of mouse events
+    // Essential for TV browsers where mousemove may not fire
+    startAutoHideControls() {
+        // Don't start auto-hide if settings panel is open
+        if (this.isSettingsPanelOpen) {
+            return;
+        }
+
+        const controls = document.getElementById('slideshowControls');
+        const info = document.getElementById('slideshowInfo');
+        const zoomControls = document.getElementById('zoomControls');
+        const settingsBtn = document.getElementById('slideshowSettingsBtn');
+
+        // Clear any existing timeout
+        if (this.controlsTimeout) {
+            clearTimeout(this.controlsTimeout);
+        }
+
+        // Hide controls after 3 seconds
+        this.controlsTimeout = setTimeout(() => {
+            controls.classList.remove('visible');
+            info.classList.remove('visible');
+            zoomControls.classList.remove('visible');
+            settingsBtn.classList.remove('visible');
+        }, 3000);
     }
 
     stopSlideshow() {

@@ -130,6 +130,13 @@ class MediaCastAPI {
         return data.count;
     }
 
+    async getAdminInitialized() {
+        const response = await fetch(`${this.baseURL}/api/admin-initialized`);
+        if (!response.ok) throw new Error('Failed to fetch admin initialized status');
+        const data = await response.json();
+        return data.initialized;
+    }
+
     async getAllUsers() {
         const response = await fetch(`${this.baseURL}/api/users`);
         if (!response.ok) throw new Error('Failed to fetch users');
