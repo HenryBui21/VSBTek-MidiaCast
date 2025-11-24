@@ -16,7 +16,7 @@ class MediaCast {
         this.isInitialized = false;
         this.isAuthReady = false;
         this.initAuthPromise = null;
-        this.slideshowAbortController = null;
+        this.slideshowEventListeners = null;
 
         // Slideshow settings
         this.slideshowSettings = {
@@ -580,10 +580,7 @@ class MediaCast {
         this.clearControlsTimeout();
 
         // Cleanup slideshow event listeners
-        if (this.slideshowAbortController) {
-            this.slideshowAbortController.abort();
-            this.slideshowAbortController = null;
-        }
+        this.removeSlideshowEventListeners();
 
         this.currentZoom = 1;
 
@@ -594,19 +591,32 @@ class MediaCast {
         content.innerHTML = '';
     }
 
+    removeSlideshowEventListeners() {
+        if (this.slideshowEventListeners) {
+            const modal = document.getElementById('slideshowModal');
+            const listeners = this.slideshowEventListeners;
+
+            modal.removeEventListener('mousemove', listeners.showAndResetControls);
+            modal.removeEventListener('click', listeners.showAndResetControls);
+            modal.removeEventListener('touchstart', listeners.showAndResetControls);
+            modal.removeEventListener('touchmove', listeners.showAndResetControls);
+            modal.removeEventListener('keydown', listeners.showAndResetControls);
+            modal.removeEventListener('mouseleave', listeners.mouseLeave);
+
+            this.slideshowEventListeners = null;
+        }
+    }
+
     setupSlideshowControls() {
         const modal = document.getElementById('slideshowModal');
 
         // Cleanup previous listeners if any
-        if (this.slideshowAbortController) {
-            this.slideshowAbortController.abort();
-        }
-        this.slideshowAbortController = new AbortController();
-        const signal = this.slideshowAbortController.signal;
+        this.removeSlideshowEventListeners();
 
         modal.classList.add('show-controls');
         this.resetControlsTimeout();
 
+        // Create bound functions to allow proper removal
         const showAndResetControls = () => {
             if (!this.isSettingsPanelOpen) {
                 modal.classList.add('show-controls');
@@ -614,17 +624,24 @@ class MediaCast {
             }
         };
 
-        modal.addEventListener('mousemove', showAndResetControls, { signal });
-        modal.addEventListener('click', showAndResetControls, { signal });
-        modal.addEventListener('touchstart', showAndResetControls, { passive: true, signal });
-        modal.addEventListener('touchmove', showAndResetControls, { passive: true, signal });
-        modal.addEventListener('keydown', showAndResetControls, { signal });
-
-        modal.addEventListener('mouseleave', () => {
+        const mouseLeave = () => {
             if (!this.isSettingsPanelOpen) {
                 this.resetControlsTimeout();
             }
-        }, { signal });
+        };
+
+        // Store references for cleanup
+        this.slideshowEventListeners = {
+            showAndResetControls: showAndResetControls,
+            mouseLeave: mouseLeave
+        };
+
+        modal.addEventListener('mousemove', showAndResetControls);
+        modal.addEventListener('click', showAndResetControls);
+        modal.addEventListener('touchstart', showAndResetControls, { passive: true });
+        modal.addEventListener('touchmove', showAndResetControls, { passive: true });
+        modal.addEventListener('keydown', showAndResetControls);
+        modal.addEventListener('mouseleave', mouseLeave);
     }
 
     resetControlsTimeout() {
@@ -815,7 +832,7 @@ class MediaCast {
 
     applyImageFit() {
         const content = document.getElementById('slideshowContent');
-        const media = content?.querySelector('img, video');
+        const media = content && content.querySelector('img, video');
         if (media) {
             media.style.objectFit = this.slideshowSettings.imageFit;
         }
@@ -1288,7 +1305,7 @@ class MediaCast {
 
     // User Management Methods
     openUserModal() {
-        if (this.currentUser?.role !== 'admin') {
+        if (!this.currentUser || this.currentUser.role !== 'admin') {
             alert('Bạn không có quyền truy cập tính năng này!');
             return;
         }
@@ -1301,7 +1318,7 @@ class MediaCast {
         const users = await api.getAllUsers();
 
         container.innerHTML = users.map(user => {
-            const isCurrentUser = user.id === this.currentUser?.id;
+            const isCurrentUser = this.currentUser && user.id === this.currentUser.id;
             const roleClass = user.role === 'admin' ? 'admin' : 'user';
             const roleText = user.role === 'admin' ? 'Quản trị viên' : 'Người dùng';
 
@@ -1388,7 +1405,7 @@ class MediaCast {
     }
 
     async deleteUser(userId) {
-        if (userId === this.currentUser?.id) {
+        if (this.currentUser && userId === this.currentUser.id) {
             alert('Không thể xóa tài khoản đang đăng nhập!');
             return;
         }
@@ -1440,7 +1457,7 @@ class MediaCast {
 
             await api.updateUser(userId, updates);
 
-            if (userId === this.currentUser?.id) {
+            if (this.currentUser && userId === this.currentUser.id) {
                 this.currentUser.role = role;
                 this.updateUserDisplay();
             }
