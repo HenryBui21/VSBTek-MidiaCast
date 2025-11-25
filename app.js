@@ -334,11 +334,12 @@ class MediaCast {
     }
 
     async handleFiles(files) {
-        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'];
+        // Removed WEBP and WEBM for better TV compatibility - older TVs often don't support these formats
+        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4'];
         const selectedCategory = document.getElementById('uploadCategory').value;
         const validFiles = Array.from(files).filter(file => {
             if (!validTypes.includes(file.type)) {
-                alert(`File ${file.name} không được hỗ trợ!`);
+                alert(`File ${file.name} không được hỗ trợ! Chỉ hỗ trợ: JPG, PNG, GIF, MP4`);
                 return false;
             }
             return true;
@@ -1161,27 +1162,40 @@ class MediaCast {
     }
 
     async hashPassword(password) {
+        // Try WebCrypto API with better error handling for TV browsers
         if (window.crypto && window.crypto.subtle) {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(password);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        } else {
-            let hash = 0;
-            for (let i = 0; i < password.length; i++) {
-                const char = password.charCodeAt(i);
-                hash = ((hash << 5) - hash) + char;
-                hash = hash & hash;
+            try {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(password);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            } catch (error) {
+                console.warn('WebCrypto API failed, using fallback hash:', error);
+                // Fall through to fallback implementation
             }
-            const salt = 'vsbtek_mediacast_2024';
-            const saltedPassword = password + salt;
-            let hash2 = 5381;
-            for (let i = 0; i < saltedPassword.length; i++) {
-                hash2 = ((hash2 << 5) + hash2) + saltedPassword.charCodeAt(i);
-            }
-            return Math.abs(hash).toString(16) + Math.abs(hash2).toString(16);
         }
+
+        // Fallback hash implementation for older TV browsers
+        // Using a more robust hashing algorithm (DJB2 + salt)
+        const salt = 'vsbtek_mediacast_2024';
+        const saltedPassword = password + salt;
+
+        let hash = 5381;
+        for (let i = 0; i < saltedPassword.length; i++) {
+            hash = ((hash << 5) + hash) + saltedPassword.charCodeAt(i);
+            hash = hash & hash; // Convert to 32-bit integer
+        }
+
+        // Add additional mixing for better security
+        let hash2 = 0;
+        for (let i = 0; i < password.length; i++) {
+            const char = password.charCodeAt(i);
+            hash2 = ((hash2 << 5) - hash2) + char;
+            hash2 = hash2 & hash2;
+        }
+
+        return Math.abs(hash).toString(16) + Math.abs(hash2).toString(16);
     }
 
     authenticateUser(user) {

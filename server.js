@@ -48,7 +48,7 @@ function saveData(data) {
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
-// MIME types
+// MIME types - Removed WEBP and WEBM for better TV compatibility
 const MIME_TYPES = {
     '.html': 'text/html',
     '.css': 'text/css',
@@ -58,9 +58,7 @@ const MIME_TYPES = {
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
     '.gif': 'image/gif',
-    '.webp': 'image/webp',
     '.mp4': 'video/mp4',
-    '.webm': 'video/webm',
     '.ico': 'image/x-icon'
 };
 

@@ -15,10 +15,16 @@ class MediaCastAPI {
         }
 
         try {
+            // Manual timeout implementation for better TV browser compatibility
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout for slow TV connections
+
             const response = await fetch(`${this.baseURL}/api/media`, {
                 method: 'GET',
-                signal: AbortSignal.timeout(3000) // 3 second timeout
+                signal: controller.signal
             });
+
+            clearTimeout(timeoutId);
             this.isAvailable = response.ok;
         } catch (e) {
             this.isAvailable = false;
