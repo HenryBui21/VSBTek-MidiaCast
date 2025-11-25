@@ -25,15 +25,13 @@ class SlideshowPlayer {
         this.controlsInitialized = false;
         this.lastInteractionTime = Date.now();
         this.controlsVisible = true;
+        this.hasUserInteracted = false;
 
         this.init();
     }
 
     async init() {
         try {
-            // Enable autoplay by simulating user interaction (for TV/kiosk mode)
-            this.enableAutoplay();
-
             // Check if API server is available
             if (typeof api !== 'undefined') {
                 const isAvailable = await api.checkAvailability();
@@ -63,27 +61,6 @@ class SlideshowPlayer {
         } catch (error) {
             console.error('Lỗi khởi tạo slideshow:', error);
             this.showEmptyState('Có lỗi xảy ra. Vui lòng kiểm tra kết nối server!');
-        }
-    }
-
-    enableAutoplay() {
-        // For TV/kiosk mode: try to enable autoplay by creating a silent audio context
-        // This helps bypass browser autoplay restrictions
-        try {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (AudioContext) {
-                const audioContext = new AudioContext();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                gainNode.gain.value = 0; // Silent
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                oscillator.start(0);
-                oscillator.stop(0.001);
-                audioContext.close();
-            }
-        } catch (e) {
-            // Ignore errors, this is just a helper for autoplay
         }
     }
 
@@ -291,15 +268,26 @@ class SlideshowPlayer {
         // Show controls on user interaction
         const container = document.getElementById('slideshowContainer');
 
-        const showControlsIfNotInSettings = () => {
+        const handleUserInteraction = () => {
+            // Mark that user has interacted (for autoplay with sound)
+            if (!this.hasUserInteracted) {
+                this.hasUserInteracted = true;
+                console.log('User interaction detected, audio autoplay enabled');
+                // Try to unmute current video if any
+                const currentVideo = document.getElementById('slideshowVideo');
+                if (currentVideo && currentVideo.muted) {
+                    currentVideo.muted = false;
+                }
+            }
+
             if (!this.isSettingsPanelOpen) {
                 this.showControls();
             }
         };
 
-        container.addEventListener('click', showControlsIfNotInSettings);
-        container.addEventListener('touchstart', showControlsIfNotInSettings, { passive: true });
-        document.addEventListener('keydown', showControlsIfNotInSettings);
+        container.addEventListener('click', handleUserInteraction);
+        container.addEventListener('touchstart', handleUserInteraction, { passive: true });
+        document.addEventListener('keydown', handleUserInteraction);
 
         // Initialize settings values
         this.updateSettingsUI();
@@ -643,7 +631,8 @@ class SlideshowPlayer {
         const video = document.createElement('video');
         video.id = 'slideshowVideo';
         video.playsInline = true;
-        video.muted = true; // Mute first to allow autoplay on all browsers
+        // Start muted if no user interaction yet, unmuted if user has interacted
+        video.muted = !this.hasUserInteracted;
         video.style.transform = `scale(${this.currentZoom})`;
         video.style.objectFit = imageFit;
 
@@ -659,15 +648,20 @@ class SlideshowPlayer {
         container.innerHTML = '';
         container.appendChild(video);
 
-        // Try to play with sound after video starts (for better TV compatibility)
+        // Fallback: ensure video plays (for browsers that support it)
         video.addEventListener('loadeddata', () => {
-            video.play().then(() => {
-                // Unmute after successful play
-                video.muted = false;
-            }).catch(err => {
-                console.warn('Video autoplay issue:', err);
-                // Keep muted if autoplay fails
-            });
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(() => {
+                    // Autoplay was blocked, fallback to muted
+                    if (!video.muted) {
+                        video.muted = true;
+                        video.play().catch(() => {
+                            // Still failed, just continue
+                        });
+                    }
+                });
+            }
         }, { once: true });
 
         video.addEventListener('ended', () => {
@@ -675,7 +669,12 @@ class SlideshowPlayer {
 
             if (this.currentVideoLoopCount < loopCount) {
                 video.currentTime = 0;
-                video.play().catch(err => console.warn('Video replay error:', err));
+                const replayPromise = video.play();
+                if (replayPromise !== undefined) {
+                    replayPromise.catch(() => {
+                        // Ignore replay errors
+                    });
+                }
             } else if (this.isPlaying) {
                 this.nextSlide();
             }
