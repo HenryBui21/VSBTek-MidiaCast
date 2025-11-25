@@ -465,6 +465,7 @@ class SlideshowPlayer {
     startSlideshow() {
         if (this.mediaItems.length === 0) return;
 
+        console.log('Starting slideshow with', this.mediaItems.length, 'items');
         this.isPlaying = true;
         this.updatePlayPauseButton();
         this.showSlide(this.currentIndex);
@@ -514,6 +515,12 @@ class SlideshowPlayer {
 
         // Get media URL from server
         const mediaURL = api.getMediaURL(media);
+
+        // Clear any pending slide transitions
+        if (this.slideshowInterval) {
+            clearTimeout(this.slideshowInterval);
+            this.slideshowInterval = null;
+        }
 
         // Apply transition effect
         this.applyTransitionEffect(slideContainer, 'out');
@@ -597,7 +604,9 @@ class SlideshowPlayer {
         container.innerHTML = '';
         container.appendChild(img);
 
+        // Always schedule next slide if playing, regardless of how we got here
         if (this.isPlaying) {
+            console.log('Image loaded, scheduling next slide in', this.slideshowSettings.slideDuration, 'ms');
             this.scheduleNextSlide();
         }
     }
@@ -611,6 +620,7 @@ class SlideshowPlayer {
         video.id = 'slideshowVideo';
         video.autoplay = true;
         video.playsInline = true;
+        video.muted = false; // Ensure audio is enabled for TV display
         video.style.transform = `scale(${this.currentZoom})`;
         video.style.objectFit = imageFit;
 
@@ -621,6 +631,15 @@ class SlideshowPlayer {
 
         container.innerHTML = '';
         container.appendChild(video);
+
+        // Ensure video plays
+        video.play().catch(err => {
+            console.warn('Autoplay bị chặn, thử play lại:', err);
+            // Fallback: try to play again after a short delay
+            setTimeout(() => {
+                video.play().catch(e => console.error('Không thể phát video:', e));
+            }, 100);
+        });
 
         video.addEventListener('ended', () => {
             this.currentVideoLoopCount++;
