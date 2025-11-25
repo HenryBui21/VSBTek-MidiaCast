@@ -31,6 +31,9 @@ class SlideshowPlayer {
 
     async init() {
         try {
+            // Enable autoplay by simulating user interaction (for TV/kiosk mode)
+            this.enableAutoplay();
+
             // Check if API server is available
             if (typeof api !== 'undefined') {
                 const isAvailable = await api.checkAvailability();
@@ -60,6 +63,27 @@ class SlideshowPlayer {
         } catch (error) {
             console.error('Lỗi khởi tạo slideshow:', error);
             this.showEmptyState('Có lỗi xảy ra. Vui lòng kiểm tra kết nối server!');
+        }
+    }
+
+    enableAutoplay() {
+        // For TV/kiosk mode: try to enable autoplay by creating a silent audio context
+        // This helps bypass browser autoplay restrictions
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+                const audioContext = new AudioContext();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                gainNode.gain.value = 0; // Silent
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                oscillator.start(0);
+                oscillator.stop(0.001);
+                audioContext.close();
+            }
+        } catch (e) {
+            // Ignore errors, this is just a helper for autoplay
         }
     }
 
@@ -618,11 +642,14 @@ class SlideshowPlayer {
 
         const video = document.createElement('video');
         video.id = 'slideshowVideo';
-        video.autoplay = true;
         video.playsInline = true;
-        video.muted = false; // Ensure audio is enabled for TV display
+        video.muted = true; // Mute first to allow autoplay on all browsers
         video.style.transform = `scale(${this.currentZoom})`;
         video.style.objectFit = imageFit;
+
+        // Use simple HTML5 attributes for better TV browser compatibility
+        video.setAttribute('autoplay', '');
+        video.setAttribute('playsinline', '');
 
         const source = document.createElement('source');
         source.src = mediaURL;
@@ -632,28 +659,30 @@ class SlideshowPlayer {
         container.innerHTML = '';
         container.appendChild(video);
 
-        // Ensure video plays
-        video.play().catch(err => {
-            console.warn('Autoplay bị chặn, thử play lại:', err);
-            // Fallback: try to play again after a short delay
-            setTimeout(() => {
-                video.play().catch(e => console.error('Không thể phát video:', e));
-            }, 100);
-        });
+        // Try to play with sound after video starts (for better TV compatibility)
+        video.addEventListener('loadeddata', () => {
+            video.play().then(() => {
+                // Unmute after successful play
+                video.muted = false;
+            }).catch(err => {
+                console.warn('Video autoplay issue:', err);
+                // Keep muted if autoplay fails
+            });
+        }, { once: true });
 
         video.addEventListener('ended', () => {
             this.currentVideoLoopCount++;
 
             if (this.currentVideoLoopCount < loopCount) {
                 video.currentTime = 0;
-                video.play();
+                video.play().catch(err => console.warn('Video replay error:', err));
             } else if (this.isPlaying) {
                 this.nextSlide();
             }
         });
 
         video.addEventListener('error', () => {
-            console.error('Lỗi phát video:', media.name);
+            console.error('Video load error:', media.name);
             if (this.isPlaying) {
                 this.nextSlide();
             }
