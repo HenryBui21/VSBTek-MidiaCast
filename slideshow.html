@@ -86,8 +86,8 @@
             <div class="settings-section">
                 <h5 class="settings-section-title">Hiệu ứng</h5>
                 <div class="setting-item">
-                    <label>Hiệu ứng chuyển</label>
-                    <select id="transitionEffect">
+                    <label for="transitionEffect">Hiệu ứng chuyển</label>
+                    <select id="transitionEffect" aria-label="Hiệu ứng chuyển">
                         <option value="fade">Mờ dần</option>
                         <option value="slide">Trượt</option>
                         <option value="zoom">Thu phóng</option>
@@ -97,22 +97,22 @@
                     </select>
                 </div>
                 <div class="setting-item">
-                    <label>Tốc độ chuyển: <span id="transitionSpeedValue">0.6s</span></label>
-                    <input type="range" id="transitionSpeed" min="200" max="2000" step="100" value="600">
+                    <label for="transitionSpeed">Tốc độ chuyển: <span id="transitionSpeedValue">0.6s</span></label>
+                    <input type="range" id="transitionSpeed" min="200" max="2000" step="100" value="600" aria-label="Tốc độ chuyển slide">
                 </div>
             </div>
 
             <div class="settings-section">
                 <h5 class="settings-section-title">Thời gian</h5>
                 <div class="setting-item">
-                    <label>Thời gian hiển thị: <span id="slideDurationValue">3s</span></label>
-                    <input type="range" id="slideDuration" min="1" max="30" value="3">
+                    <label for="slideDuration">Thời gian hiển thị: <span id="slideDurationValue">3s</span></label>
+                    <input type="range" id="slideDuration" min="1" max="30" value="3" aria-label="Thời gian hiển thị mỗi slide">
                 </div>
                 <div class="setting-item video-loop-setting" id="videoLoopSetting" style="display: none;">
-                    <label>Số lần lặp video: <span id="videoLoopValue">1</span></label>
+                    <label for="videoLoopCount">Số lần lặp video: <span id="videoLoopValue">1</span></label>
                     <div class="loop-control">
-                        <input type="range" id="videoLoopCount" min="1" max="10" value="1">
-                        <button class="btn btn-sm" id="saveVideoLoopBtn">Lưu</button>
+                        <input type="range" id="videoLoopCount" min="1" max="10" value="1" aria-label="Số lần lặp video">
+                        <button class="btn btn-sm" id="saveVideoLoopBtn" aria-label="Lưu số lần lặp video">Lưu</button>
                     </div>
                 </div>
             </div>
@@ -120,16 +120,16 @@
             <div class="settings-section">
                 <h5 class="settings-section-title">Chế độ phát</h5>
                 <div class="setting-item">
-                    <label>Thứ tự phát</label>
-                    <select id="playOrder">
+                    <label for="playOrder">Thứ tự phát</label>
+                    <select id="playOrder" aria-label="Thứ tự phát">
                         <option value="sequential">Tuần tự</option>
                         <option value="random">Ngẫu nhiên</option>
                     </select>
                 </div>
                 <div class="setting-item toggle-item">
-                    <label>Lặp lại slideshow</label>
+                    <label for="loopSlideshow">Lặp lại slideshow</label>
                     <label class="toggle-switch">
-                        <input type="checkbox" id="loopSlideshow" checked>
+                        <input type="checkbox" id="loopSlideshow" checked aria-label="Bật/tắt lặp lại slideshow">
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
@@ -138,28 +138,28 @@
             <div class="settings-section">
                 <h5 class="settings-section-title">Hiển thị</h5>
                 <div class="setting-item">
-                    <label>Chế độ hiển thị ảnh</label>
-                    <select id="imageFit">
+                    <label for="imageFit">Chế độ hiển thị ảnh</label>
+                    <select id="imageFit" aria-label="Chế độ hiển thị ảnh">
                         <option value="contain">Vừa khung</option>
                         <option value="cover">Phủ đầy</option>
                         <option value="fill">Kéo giãn</option>
                     </select>
                 </div>
                 <div class="setting-item">
-                    <label>Màu nền</label>
-                    <input type="color" id="backgroundColor" value="#000000" class="color-picker">
+                    <label for="backgroundColor">Màu nền</label>
+                    <input type="color" id="backgroundColor" value="#000000" class="color-picker" aria-label="Chọn màu nền slideshow">
                 </div>
                 <div class="setting-item toggle-item">
-                    <label>Hiện số thứ tự</label>
+                    <label for="showCounter">Hiện số thứ tự</label>
                     <label class="toggle-switch">
-                        <input type="checkbox" id="showCounter" checked>
+                        <input type="checkbox" id="showCounter" checked aria-label="Bật/tắt hiển thị số thứ tự slide">
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
                 <div class="setting-item toggle-item">
-                    <label>Hiện điều khiển</label>
+                    <label for="showControls">Hiện điều khiển</label>
                     <label class="toggle-switch">
-                        <input type="checkbox" id="showControls" checked>
+                        <input type="checkbox" id="showControls" checked aria-label="Bật/tắt hiển thị nút điều khiển">
                         <span class="toggle-slider"></span>
                     </label>
                 </div>

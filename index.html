@@ -78,7 +78,7 @@
             <div class="upload-header">
                 <h2>Tải lên Media</h2>
                 <div class="upload-category-controls">
-                    <select id="uploadCategory" class="category-select">
+                    <select id="uploadCategory" class="category-select" aria-label="Chọn danh mục để upload">
                         <option value="Chung">Chung</option>
                     </select>
                     <button class="btn btn-outline" id="manageCategoriesBtn">Quản lý danh mục</button>
@@ -124,7 +124,7 @@
                         <circle cx="11" cy="11" r="8"></circle>
                         <path d="m21 21-4.35-4.35"></path>
                     </svg>
-                    <input type="text" id="searchInput" placeholder="Tìm kiếm media..." class="search-input">
+                    <input type="text" id="searchInput" placeholder="Tìm kiếm media..." class="search-input" aria-label="Tìm kiếm media">
                 </div>
                 <div class="category-filters" id="categoryFilters">
                     <button class="category-filter active" data-category="all">Tất cả</button>
@@ -142,15 +142,15 @@
     <!-- Slideshow Modal -->
     <div class="slideshow-modal" id="slideshowModal">
         <div class="slideshow-top-controls">
-            <button class="slideshow-close-btn" id="closeSlideshow">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <button class="slideshow-close-btn" id="closeSlideshow" aria-label="Đóng slideshow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
             </button>
 
-            <button class="slideshow-settings-btn" id="slideshowSettingsBtn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <button class="slideshow-settings-btn" id="slideshowSettingsBtn" aria-label="Mở cài đặt slideshow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <circle cx="12" cy="12" r="3"></circle>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                 </svg>
@@ -158,44 +158,44 @@
         </div>
 
         <div class="slideshow-controls">
-            <button class="control-btn" id="prevBtn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <button class="control-btn" id="prevBtn" aria-label="Slide trước">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
             </button>
-            <button class="control-btn" id="playPauseBtn">
-                <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
+            <button class="control-btn" id="playPauseBtn" aria-label="Phát/Dừng">
+                <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <polygon points="5 3 19 12 5 21 5 3"></polygon>
                 </svg>
-                <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor">
+                <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <rect x="6" y="4" width="4" height="16"></rect>
                     <rect x="14" y="4" width="4" height="16"></rect>
                 </svg>
             </button>
-            <button class="control-btn" id="nextBtn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <button class="control-btn" id="nextBtn" aria-label="Slide sau">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                     <polyline points="9 18 15 12 9 6"></polyline>
                 </svg>
             </button>
         </div>
 
         <div class="slideshow-zoom-controls">
-            <button class="control-btn" id="zoomOutBtn" title="Thu nhỏ">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button class="control-btn" id="zoomOutBtn" title="Thu nhỏ" aria-label="Thu nhỏ">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <circle cx="11" cy="11" r="8"></circle>
                     <path d="m21 21-4.35-4.35"></path>
                     <line x1="8" y1="11" x2="14" y2="11"></line>
                 </svg>
             </button>
-            <button class="control-btn" id="zoomResetBtn" title="Đặt lại zoom">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button class="control-btn" id="zoomResetBtn" title="Đặt lại zoom" aria-label="Đặt lại zoom">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <circle cx="12" cy="12" r="10"></circle>
                     <line x1="12" y1="8" x2="12" y2="16"></line>
                     <line x1="8" y1="12" x2="16" y2="12"></line>
                 </svg>
             </button>
-            <button class="control-btn" id="zoomInBtn" title="Phóng to">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button class="control-btn" id="zoomInBtn" title="Phóng to" aria-label="Phóng to">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <circle cx="11" cy="11" r="8"></circle>
                     <path d="m21 21-4.35-4.35"></path>
                     <line x1="11" y1="8" x2="11" y2="14"></line>
@@ -218,8 +218,8 @@
                 <div class="settings-section">
                     <h5 class="settings-section-title">Hiệu ứng</h5>
                     <div class="setting-item">
-                        <label>Hiệu ứng chuyển cảnh:</label>
-                        <select id="transitionEffect" class="setting-select">
+                        <label for="transitionEffect">Hiệu ứng chuyển cảnh:</label>
+                        <select id="transitionEffect" class="setting-select" aria-label="Hiệu ứng chuyển cảnh">
                             <option value="fade">Mờ dần (Fade)</option>
                             <option value="slide">Trượt ngang (Slide)</option>
                             <option value="zoom">Thu phóng (Zoom)</option>
@@ -229,9 +229,9 @@
                         </select>
                     </div>
                     <div class="setting-item">
-                        <label>Tốc độ hiệu ứng:</label>
+                        <label for="transitionSpeed">Tốc độ hiệu ứng:</label>
                         <div class="slider-container">
-                            <input type="range" id="transitionSpeed" min="300" max="2000" step="100" value="600" class="setting-slider">
+                            <input type="range" id="transitionSpeed" min="300" max="2000" step="100" value="600" class="setting-slider" aria-label="Tốc độ hiệu ứng chuyển cảnh">
                             <span class="slider-value" id="transitionSpeedValue">0.6s</span>
                         </div>
                     </div>
@@ -240,17 +240,17 @@
                 <div class="settings-section">
                     <h5 class="settings-section-title">Thời gian</h5>
                     <div class="setting-item">
-                        <label>Thời gian hiển thị ảnh:</label>
+                        <label for="slideDuration">Thời gian hiển thị ảnh:</label>
                         <div class="slider-container">
-                            <input type="range" id="slideDuration" min="1" max="30" step="1" value="3" class="setting-slider">
+                            <input type="range" id="slideDuration" min="1" max="30" step="1" value="3" class="setting-slider" aria-label="Thời gian hiển thị mỗi ảnh">
                             <span class="slider-value" id="slideDurationValue">3s</span>
                         </div>
                     </div>
                     <div class="setting-item" id="videoLoopSetting" style="display: none;">
-                        <label>Số lần lặp video hiện tại:</label>
+                        <label for="currentVideoLoopCount">Số lần lặp video hiện tại:</label>
                         <div class="slider-container">
-                            <input type="number" id="currentVideoLoopCount" min="1" max="100" value="1">
-                            <button id="saveVideoLoopBtn">Lưu</button>
+                            <input type="number" id="currentVideoLoopCount" min="1" max="100" value="1" aria-label="Số lần lặp video">
+                            <button id="saveVideoLoopBtn" aria-label="Lưu số lần lặp video">Lưu</button>
                         </div>
                         <p>Số lần video này sẽ lặp lại (1-100 lần)</p>
                     </div>
@@ -259,23 +259,23 @@
                 <div class="settings-section">
                     <h5 class="settings-section-title">Chế độ phát</h5>
                     <div class="setting-item">
-                        <label>Thứ tự phát:</label>
-                        <select id="playOrder" class="setting-select">
+                        <label for="playOrder">Thứ tự phát:</label>
+                        <select id="playOrder" class="setting-select" aria-label="Thứ tự phát slideshow">
                             <option value="sequential">Tuần tự</option>
                             <option value="random">Ngẫu nhiên</option>
                         </select>
                     </div>
                     <div class="setting-item">
-                        <label>Tự động phát:</label>
+                        <label for="autoPlay">Tự động phát:</label>
                         <label class="toggle-switch">
-                            <input type="checkbox" id="autoPlay" checked>
+                            <input type="checkbox" id="autoPlay" checked aria-label="Bật/tắt tự động phát">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
                     <div class="setting-item">
-                        <label>Lặp lại slideshow:</label>
+                        <label for="loopSlideshow">Lặp lại slideshow:</label>
                         <label class="toggle-switch">
-                            <input type="checkbox" id="loopSlideshow" checked>
+                            <input type="checkbox" id="loopSlideshow" checked aria-label="Bật/tắt lặp lại slideshow">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
@@ -284,31 +284,31 @@
                 <div class="settings-section">
                     <h5 class="settings-section-title">Hiển thị</h5>
                     <div class="setting-item">
-                        <label>Chế độ hiển thị ảnh:</label>
-                        <select id="imageFit" class="setting-select">
+                        <label for="imageFit">Chế độ hiển thị ảnh:</label>
+                        <select id="imageFit" class="setting-select" aria-label="Chế độ hiển thị ảnh">
                             <option value="contain">Vừa khung (Contain)</option>
                             <option value="cover">Phủ đầy (Cover)</option>
                             <option value="fill">Kéo giãn (Fill)</option>
                         </select>
                     </div>
                     <div class="setting-item">
-                        <label>Màu nền:</label>
+                        <label for="backgroundColor">Màu nền:</label>
                         <div class="color-picker-container">
-                            <input type="color" id="backgroundColor" value="#000000" class="color-picker">
+                            <input type="color" id="backgroundColor" value="#000000" class="color-picker" aria-label="Chọn màu nền">
                             <span class="color-value" id="backgroundColorValue">#000000</span>
                         </div>
                     </div>
                     <div class="setting-item">
-                        <label>Hiện số thứ tự:</label>
+                        <label for="showCounter">Hiện số thứ tự:</label>
                         <label class="toggle-switch">
-                            <input type="checkbox" id="showCounter" checked>
+                            <input type="checkbox" id="showCounter" checked aria-label="Bật/tắt hiển thị số thứ tự">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
                     <div class="setting-item">
-                        <label>Hiện điều khiển:</label>
+                        <label for="showControls">Hiện điều khiển:</label>
                         <label class="toggle-switch">
-                            <input type="checkbox" id="showControls" checked>
+                            <input type="checkbox" id="showControls" checked aria-label="Bật/tắt hiển thị điều khiển">
                             <span class="toggle-slider"></span>
                         </label>
                     </div>
@@ -322,8 +322,8 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Quản lý Danh mục</h3>
-                <button class="close-modal-btn" id="closeCategoryModal">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <button class="close-modal-btn" id="closeCategoryModal" aria-label="Đóng modal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
@@ -331,7 +331,7 @@
             </div>
             <div class="modal-body">
                 <div class="add-category-form">
-                    <input type="text" id="newCategoryInput" placeholder="Tên danh mục mới..." class="modal-input">
+                    <input type="text" id="newCategoryInput" placeholder="Tên danh mục mới..." class="modal-input" aria-label="Tên danh mục mới">
                     <button class="btn btn-primary" id="addCategoryBtn">Thêm</button>
                 </div>
                 <div class="categories-list" id="categoriesList">
@@ -346,8 +346,8 @@
         <div class="modal-content modal-content-lg">
             <div class="modal-header">
                 <h3>Quản lý Người dùng</h3>
-                <button class="close-modal-btn" id="closeUserModal">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <button class="close-modal-btn" id="closeUserModal" aria-label="Đóng modal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
@@ -355,9 +355,9 @@
             </div>
             <div class="modal-body">
                 <div class="add-user-form">
-                    <input type="text" id="newUsername" placeholder="Tên đăng nhập..." class="modal-input">
-                    <input type="password" id="newUserPassword" placeholder="Mật khẩu..." class="modal-input">
-                    <select id="newUserRole" class="modal-input">
+                    <input type="text" id="newUsername" placeholder="Tên đăng nhập..." class="modal-input" aria-label="Tên đăng nhập mới">
+                    <input type="password" id="newUserPassword" placeholder="Mật khẩu..." class="modal-input" aria-label="Mật khẩu mới">
+                    <select id="newUserRole" class="modal-input" aria-label="Vai trò người dùng">
                         <option value="user">Người dùng</option>
                         <option value="admin">Quản trị viên</option>
                     </select>
@@ -375,8 +375,8 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Đổi mật khẩu</h3>
-                <button class="close-modal-btn" id="closeChangePasswordModal">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <button class="close-modal-btn" id="closeChangePasswordModal" aria-label="Đóng modal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
@@ -407,8 +407,8 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Chỉnh sửa người dùng</h3>
-                <button class="close-modal-btn" id="closeEditUserModal">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <button class="close-modal-btn" id="closeEditUserModal" aria-label="Đóng modal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
@@ -423,7 +423,7 @@
                     </div>
                     <div class="form-group">
                         <label for="editUserRole">Vai trò:</label>
-                        <select id="editUserRole" class="modal-input">
+                        <select id="editUserRole" class="modal-input" aria-label="Vai trò người dùng">
                             <option value="user">Người dùng</option>
                             <option value="admin">Quản trị viên</option>
                         </select>
@@ -443,8 +443,8 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Link Trình Chiếu cho TV</h3>
-                <button class="close-modal-btn" id="closeShareLinkModal">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <button class="close-modal-btn" id="closeShareLinkModal" aria-label="Đóng modal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
                     </svg>
@@ -453,12 +453,12 @@
             <div class="modal-body">
                 <p class="share-link-description">Sử dụng link này để trình chiếu trên TV mà không cần đăng nhập:</p>
                 <div class="share-link-box">
-                    <input type="text" id="shareLinkInput" class="modal-input" readonly>
+                    <input type="text" id="shareLinkInput" class="modal-input" readonly aria-label="Link trình chiếu">
                     <button class="btn btn-primary" id="copyLinkBtn">Sao chép</button>
                 </div>
                 <div class="share-link-options">
-                    <label>Lọc theo danh mục:</label>
-                    <select id="shareLinkCategory" class="modal-input">
+                    <label for="shareLinkCategory">Lọc theo danh mục:</label>
+                    <select id="shareLinkCategory" class="modal-input" aria-label="Lọc theo danh mục">
                         <option value="all">Tất cả</option>
                     </select>
                 </div>
