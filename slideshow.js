@@ -26,6 +26,7 @@ class SlideshowPlayer {
         this.lastInteractionTime = Date.now();
         this.controlsVisible = true;
         this.hasUserInteracted = false;
+        this.isProcessingUnmute = false;
 
         this.init();
     }
@@ -270,8 +271,9 @@ class SlideshowPlayer {
 
         const handleUserInteraction = (event) => {
             // Mark that user has interacted (for autoplay with sound)
-            if (!this.hasUserInteracted) {
+            if (!this.hasUserInteracted && !this.isProcessingUnmute) {
                 this.hasUserInteracted = true;
+                this.isProcessingUnmute = true;
                 console.log('User interaction detected, audio autoplay enabled');
 
                 // Handle current video for mobile compatibility
@@ -279,29 +281,40 @@ class SlideshowPlayer {
                 if (currentVideo && currentVideo.muted) {
                     console.log('Enabling audio for current video');
 
-                    // Mobile-safe approach: pause, unmute, then play in same synchronous block
+                    // Check if video is actually playing before interfering
                     const wasPlaying = !currentVideo.paused;
 
-                    // Pause first to reset playback state
-                    currentVideo.pause();
-
-                    // Unmute - must be synchronous
-                    currentVideo.muted = false;
-
-                    // Play immediately - must be synchronous with user gesture
+                    // Only manipulate playback if video was actually playing
                     if (wasPlaying) {
+                        // Mobile-safe approach: pause, unmute, then play in same synchronous block
+                        currentVideo.pause();
+                        currentVideo.muted = false;
+
+                        // Play immediately - must be synchronous with user gesture
                         const playPromise = currentVideo.play();
                         if (playPromise !== undefined) {
-                            playPromise.catch((error) => {
+                            playPromise.then(() => {
+                                this.isProcessingUnmute = false;
+                            }).catch((error) => {
                                 console.warn('Could not play video with audio:', error);
                                 // Fallback: stay muted for this video
                                 currentVideo.muted = true;
                                 currentVideo.play().catch((err) => {
                                     console.error('Video playback failed completely:', err);
+                                }).finally(() => {
+                                    this.isProcessingUnmute = false;
                                 });
                             });
+                        } else {
+                            this.isProcessingUnmute = false;
                         }
+                    } else {
+                        // Video is paused/loading, just unmute it for when it starts
+                        currentVideo.muted = false;
+                        this.isProcessingUnmute = false;
                     }
+                } else {
+                    this.isProcessingUnmute = false;
                 }
             }
 
@@ -312,8 +325,8 @@ class SlideshowPlayer {
 
         container.addEventListener('click', handleUserInteraction);
         // Remove passive flag to ensure touch is treated as user gesture for media playback
+        // Only use touchstart (not touchend) to avoid duplicate events on mobile
         container.addEventListener('touchstart', handleUserInteraction);
-        container.addEventListener('touchend', handleUserInteraction);
         document.addEventListener('keydown', handleUserInteraction);
 
         // Initialize settings values
