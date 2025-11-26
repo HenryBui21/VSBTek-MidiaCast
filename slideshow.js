@@ -268,29 +268,39 @@ class SlideshowPlayer {
         // Show controls on user interaction
         const container = document.getElementById('slideshowContainer');
 
-        const handleUserInteraction = () => {
+        const handleUserInteraction = (event) => {
             // Mark that user has interacted (for autoplay with sound)
             if (!this.hasUserInteracted) {
                 this.hasUserInteracted = true;
                 console.log('User interaction detected, audio autoplay enabled');
 
-                // Restart current video with audio if it's playing
+                // Handle current video for mobile compatibility
                 const currentVideo = document.getElementById('slideshowVideo');
                 if (currentVideo && currentVideo.muted) {
-                    console.log('Restarting video with audio after user interaction');
-                    const currentTime = currentVideo.currentTime;
-                    const isPlaying = !currentVideo.paused;
+                    console.log('Enabling audio for current video');
 
-                    // Unmute and attempt to continue playback
+                    // Mobile-safe approach: pause, unmute, then play in same synchronous block
+                    const wasPlaying = !currentVideo.paused;
+
+                    // Pause first to reset playback state
+                    currentVideo.pause();
+
+                    // Unmute - must be synchronous
                     currentVideo.muted = false;
 
-                    // If video was playing, ensure it continues
-                    if (isPlaying) {
-                        currentVideo.play().catch((error) => {
-                            console.warn('Could not unmute playing video:', error);
-                            // Fallback: stay muted if unmute fails
-                            currentVideo.muted = true;
-                        });
+                    // Play immediately - must be synchronous with user gesture
+                    if (wasPlaying) {
+                        const playPromise = currentVideo.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch((error) => {
+                                console.warn('Could not play video with audio:', error);
+                                // Fallback: stay muted for this video
+                                currentVideo.muted = true;
+                                currentVideo.play().catch((err) => {
+                                    console.error('Video playback failed completely:', err);
+                                });
+                            });
+                        }
                     }
                 }
             }
@@ -301,7 +311,9 @@ class SlideshowPlayer {
         };
 
         container.addEventListener('click', handleUserInteraction);
-        container.addEventListener('touchstart', handleUserInteraction, { passive: true });
+        // Remove passive flag to ensure touch is treated as user gesture for media playback
+        container.addEventListener('touchstart', handleUserInteraction);
+        container.addEventListener('touchend', handleUserInteraction);
         document.addEventListener('keydown', handleUserInteraction);
 
         // Initialize settings values
