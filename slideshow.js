@@ -273,10 +273,25 @@ class SlideshowPlayer {
             if (!this.hasUserInteracted) {
                 this.hasUserInteracted = true;
                 console.log('User interaction detected, audio autoplay enabled');
-                // Try to unmute current video if any
+
+                // Restart current video with audio if it's playing
                 const currentVideo = document.getElementById('slideshowVideo');
                 if (currentVideo && currentVideo.muted) {
+                    console.log('Restarting video with audio after user interaction');
+                    const currentTime = currentVideo.currentTime;
+                    const isPlaying = !currentVideo.paused;
+
+                    // Unmute and attempt to continue playback
                     currentVideo.muted = false;
+
+                    // If video was playing, ensure it continues
+                    if (isPlaying) {
+                        currentVideo.play().catch((error) => {
+                            console.warn('Could not unmute playing video:', error);
+                            // Fallback: stay muted if unmute fails
+                            currentVideo.muted = true;
+                        });
+                    }
                 }
             }
 
@@ -496,9 +511,23 @@ class SlideshowPlayer {
     togglePlayPause() {
         if (this.isPlaying) {
             this.stopSlideshow();
+            // Pause current video if playing
+            const currentVideo = document.getElementById('slideshowVideo');
+            if (currentVideo) {
+                currentVideo.pause();
+            }
         } else {
             this.isPlaying = true;
             this.updatePlayPauseButton();
+
+            // Resume current video if paused
+            const currentVideo = document.getElementById('slideshowVideo');
+            if (currentVideo && currentVideo.paused) {
+                currentVideo.play().catch((error) => {
+                    console.warn('Could not resume video:', error);
+                });
+            }
+
             this.scheduleNextSlide();
         }
     }
