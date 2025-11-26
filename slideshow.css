@@ -82,6 +82,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
     opacity: 0;
     transition: opacity 0.6s ease;
 }
@@ -96,6 +97,19 @@ body {
     height: 100%;
     object-fit: contain;
     transition: transform 0.3s ease, object-fit 0.3s ease;
+    /* Fallback for older browsers without object-fit support */
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* Additional video rendering hints for older TV browsers */
+.slide video {
+    background-color: #000;
+    /* Force hardware acceleration on supported browsers */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    /* Improve rendering performance */
+    will-change: transform;
 }
 
 /* Slideshow Controls */

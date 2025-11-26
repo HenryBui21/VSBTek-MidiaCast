@@ -633,12 +633,25 @@ class SlideshowPlayer {
         video.playsInline = true;
         // Start muted if no user interaction yet, unmuted if user has interacted
         video.muted = !this.hasUserInteracted;
-        video.style.transform = `scale(${this.currentZoom})`;
+
+        // Set explicit dimensions for better TV compatibility
+        const containerWidth = container.clientWidth || window.innerWidth;
+        const containerHeight = container.clientHeight || window.innerHeight;
+        video.setAttribute('width', containerWidth);
+        video.setAttribute('height', containerHeight);
+
+        // Apply object-fit with fallback for older browsers
         video.style.objectFit = imageFit;
+
+        // Only apply transform if zoom is not default (avoid unnecessary GPU operations on old TVs)
+        if (this.currentZoom !== 1) {
+            video.style.transform = `scale(${this.currentZoom})`;
+        }
 
         // Use simple HTML5 attributes for better TV browser compatibility
         video.setAttribute('autoplay', '');
         video.setAttribute('playsinline', '');
+        video.setAttribute('preload', 'auto');
 
         const source = document.createElement('source');
         source.src = mediaURL;
@@ -648,16 +661,38 @@ class SlideshowPlayer {
         container.innerHTML = '';
         container.appendChild(video);
 
-        // Fallback: ensure video plays (for browsers that support it)
+        // Apply object-fit polyfill for older TV browsers that don't support it
+        this.applyObjectFitPolyfill(video, imageFit, containerWidth, containerHeight);
+
+        // Enhanced fallback for video playback on older TV browsers
+        video.addEventListener('loadedmetadata', () => {
+            console.log('Video metadata loaded:', {
+                width: video.videoWidth,
+                height: video.videoHeight,
+                duration: video.duration
+            });
+
+            // Ensure video is visible by setting background for debugging
+            if (video.videoWidth === 0 || video.videoHeight === 0) {
+                console.error('Video has no dimensions, possible codec issue');
+            }
+        }, { once: true });
+
         video.addEventListener('loadeddata', () => {
+            console.log('Video data loaded, attempting playback');
             const playPromise = video.play();
             if (playPromise !== undefined) {
-                playPromise.catch(() => {
+                playPromise.then(() => {
+                    console.log('Video playback started successfully');
+                }).catch((error) => {
+                    console.warn('Autoplay blocked:', error);
                     // Autoplay was blocked, fallback to muted
                     if (!video.muted) {
                         video.muted = true;
-                        video.play().catch(() => {
-                            // Still failed, just continue
+                        video.play().then(() => {
+                            console.log('Video playing muted after autoplay block');
+                        }).catch((err) => {
+                            console.error('Video playback failed completely:', err);
                         });
                     }
                 });
@@ -686,6 +721,81 @@ class SlideshowPlayer {
                 this.nextSlide();
             }
         });
+    }
+
+    applyObjectFitPolyfill(videoElement, fitMode, containerWidth, containerHeight) {
+        // Test if object-fit is supported
+        if ('objectFit' in document.documentElement.style) {
+            // Modern browser supports object-fit, no polyfill needed
+            return;
+        }
+
+        // Polyfill for older TV browsers that don't support object-fit
+        console.log('Applying object-fit polyfill for older TV browser');
+
+        // Wait for video metadata to load to get actual dimensions
+        videoElement.addEventListener('loadedmetadata', () => {
+            const videoWidth = videoElement.videoWidth;
+            const videoHeight = videoElement.videoHeight;
+
+            if (!videoWidth || !videoHeight) {
+                console.warn('Video dimensions not available');
+                return;
+            }
+
+            const containerRatio = containerWidth / containerHeight;
+            const videoRatio = videoWidth / videoHeight;
+
+            let width, height, top, left;
+
+            if (fitMode === 'contain') {
+                // Contain: fit entire video inside container
+                if (videoRatio > containerRatio) {
+                    // Video is wider
+                    width = containerWidth;
+                    height = containerWidth / videoRatio;
+                    top = (containerHeight - height) / 2;
+                    left = 0;
+                } else {
+                    // Video is taller
+                    height = containerHeight;
+                    width = containerHeight * videoRatio;
+                    top = 0;
+                    left = (containerWidth - width) / 2;
+                }
+            } else if (fitMode === 'cover') {
+                // Cover: fill entire container, crop video if needed
+                if (videoRatio > containerRatio) {
+                    // Video is wider
+                    height = containerHeight;
+                    width = containerHeight * videoRatio;
+                    top = 0;
+                    left = (containerWidth - width) / 2;
+                } else {
+                    // Video is taller
+                    width = containerWidth;
+                    height = containerWidth / videoRatio;
+                    top = (containerHeight - height) / 2;
+                    left = 0;
+                }
+            } else {
+                // fill or stretch
+                width = containerWidth;
+                height = containerHeight;
+                top = 0;
+                left = 0;
+            }
+
+            // Apply calculated dimensions and position
+            videoElement.style.width = width + 'px';
+            videoElement.style.height = height + 'px';
+            videoElement.style.position = 'absolute';
+            videoElement.style.top = top + 'px';
+            videoElement.style.left = left + 'px';
+            videoElement.style.objectFit = ''; // Clear object-fit since we're using manual positioning
+
+            console.log('Object-fit polyfill applied:', { fitMode, width, height, top, left });
+        }, { once: true });
     }
 
     scheduleNextSlide() {
@@ -753,7 +863,13 @@ class SlideshowPlayer {
         const slide = document.getElementById('currentSlide');
         const media = slide.querySelector('img, video');
         if (media) {
-            media.style.transform = `scale(${this.currentZoom})`;
+            // Only apply transform if zoom is not default
+            if (this.currentZoom !== 1) {
+                media.style.transform = `scale(${this.currentZoom})`;
+            } else {
+                // Remove transform when at default zoom for better TV compatibility
+                media.style.transform = '';
+            }
         }
     }
 
