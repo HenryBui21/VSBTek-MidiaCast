@@ -27,6 +27,10 @@ class SlideshowPlayer {
         this.controlsVisible = true;
         this.hasUserInteracted = false;
         this.isProcessingUnmute = false;
+        this.currentVideoElement = null; // Track current video element
+        this.isTransitioning = false; // Prevent overlapping transitions
+        this.nextVideoPreloadTimeout = null; // Timeout for preloading next video
+        this.isTogglingPlayPause = false; // Prevent rapid play/pause clicks
 
         this.init();
     }
@@ -277,29 +281,28 @@ class SlideshowPlayer {
                 console.log('User interaction detected, audio autoplay enabled');
 
                 // Handle current video for mobile compatibility
-                const currentVideo = document.getElementById('slideshowVideo');
-                if (currentVideo && currentVideo.muted) {
+                if (this.currentVideoElement && this.currentVideoElement.muted) {
                     console.log('Enabling audio for current video');
 
                     // Check if video is actually playing before interfering
-                    const wasPlaying = !currentVideo.paused;
+                    const wasPlaying = !this.currentVideoElement.paused;
 
                     // Only manipulate playback if video was actually playing
                     if (wasPlaying) {
                         // Mobile-safe approach: pause, unmute, then play in same synchronous block
-                        currentVideo.pause();
-                        currentVideo.muted = false;
+                        this.currentVideoElement.pause();
+                        this.currentVideoElement.muted = false;
 
                         // Play immediately - must be synchronous with user gesture
-                        const playPromise = currentVideo.play();
+                        const playPromise = this.currentVideoElement.play();
                         if (playPromise !== undefined) {
                             playPromise.then(() => {
                                 this.isProcessingUnmute = false;
                             }).catch((error) => {
                                 console.warn('Could not play video with audio:', error);
                                 // Fallback: stay muted for this video
-                                currentVideo.muted = true;
-                                currentVideo.play().catch((err) => {
+                                this.currentVideoElement.muted = true;
+                                this.currentVideoElement.play().catch((err) => {
                                     console.error('Video playback failed completely:', err);
                                 }).finally(() => {
                                     this.isProcessingUnmute = false;
@@ -310,7 +313,7 @@ class SlideshowPlayer {
                         }
                     } else {
                         // Video is paused/loading, just unmute it for when it starts
-                        currentVideo.muted = false;
+                        this.currentVideoElement.muted = false;
                         this.isProcessingUnmute = false;
                     }
                 } else {
@@ -534,26 +537,60 @@ class SlideshowPlayer {
     }
 
     togglePlayPause() {
-        if (this.isPlaying) {
-            this.stopSlideshow();
-            // Pause current video if playing
-            const currentVideo = document.getElementById('slideshowVideo');
-            if (currentVideo) {
-                currentVideo.pause();
-            }
-        } else {
-            this.isPlaying = true;
-            this.updatePlayPauseButton();
+        // Prevent rapid clicking
+        if (this.isTogglingPlayPause) {
+            console.log('Play/pause already in progress, ignoring click');
+            return;
+        }
 
-            // Resume current video if paused
-            const currentVideo = document.getElementById('slideshowVideo');
-            if (currentVideo && currentVideo.paused) {
-                currentVideo.play().catch((error) => {
-                    console.warn('Could not resume video:', error);
-                });
-            }
+        this.isTogglingPlayPause = true;
 
-            this.scheduleNextSlide();
+        try {
+            if (this.isPlaying) {
+                // Pause slideshow
+                console.log('Pausing slideshow');
+                this.stopSlideshow();
+
+                // Pause current video if it exists and is playing
+                if (this.currentVideoElement && !this.currentVideoElement.paused) {
+                    console.log('Pausing current video');
+                    this.currentVideoElement.pause();
+                }
+            } else {
+                // Resume slideshow
+                console.log('Resuming slideshow');
+                this.isPlaying = true;
+                this.updatePlayPauseButton();
+
+                // Check if current slide is a video
+                if (this.currentVideoElement) {
+                    // We have a video - resume it if paused
+                    if (this.currentVideoElement.paused) {
+                        console.log('Resuming paused video');
+                        const playPromise = this.currentVideoElement.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch((error) => {
+                                console.error('Could not resume video:', error);
+                                // If video can't play, skip to next slide
+                                this.nextSlide();
+                            });
+                        }
+                    } else {
+                        console.log('Video already playing, no action needed');
+                    }
+                    // Note: Video handles its own timing via 'ended' event
+                    // We don't call scheduleNextSlide() for videos
+                } else {
+                    // Current slide is an image - schedule next slide transition
+                    console.log('Resuming image slideshow');
+                    this.scheduleNextSlide();
+                }
+            }
+        } finally {
+            // Allow next toggle after a short delay to prevent double-clicks
+            setTimeout(() => {
+                this.isTogglingPlayPause = false;
+            }, 300);
         }
     }
 
@@ -573,6 +610,13 @@ class SlideshowPlayer {
     showSlide(index) {
         if (this.mediaItems.length === 0) return;
 
+        // Prevent overlapping transitions
+        if (this.isTransitioning) {
+            console.log('Transition already in progress, skipping...');
+            return;
+        }
+        this.isTransitioning = true;
+
         const media = this.mediaItems[index];
         const slideContainer = document.getElementById('currentSlide');
 
@@ -588,6 +632,9 @@ class SlideshowPlayer {
             this.slideshowInterval = null;
         }
 
+        // CRITICAL: Stop and cleanup current video before transition
+        this.cleanupCurrentVideo();
+
         // Apply transition effect
         this.applyTransitionEffect(slideContainer, 'out');
 
@@ -600,6 +647,10 @@ class SlideshowPlayer {
 
             this.applyTransitionEffect(slideContainer, 'in');
             this.updateCounter();
+
+            // Reset transitioning flag after media is loaded
+            // This prevents rapid clicks during transition
+            this.isTransitioning = false;
         }, this.slideshowSettings.transitionSpeed);
     }
 
@@ -667,8 +718,13 @@ class SlideshowPlayer {
         img.alt = media.name;
         img.style.transform = `scale(${this.currentZoom})`;
         img.style.objectFit = imageFit;
+
+        // Clear container safely
         container.innerHTML = '';
         container.appendChild(img);
+
+        // Clear reference to video since we're showing image
+        this.currentVideoElement = null;
 
         // Always schedule next slide if playing, regardless of how we got here
         if (this.isPlaying) {
@@ -712,8 +768,12 @@ class SlideshowPlayer {
         source.type = media.mimeType || 'video/mp4';
         video.appendChild(source);
 
+        // Clear container safely
         container.innerHTML = '';
         container.appendChild(video);
+
+        // Store reference to current video
+        this.currentVideoElement = video;
 
         // Apply object-fit polyfill for older TV browsers that don't support it
         this.applyObjectFitPolyfill(video, imageFit, containerWidth, containerHeight);
@@ -753,28 +813,118 @@ class SlideshowPlayer {
             }
         }, { once: true });
 
+        // Fallback: If video doesn't load within 3 seconds on old TV, try force play
+        setTimeout(() => {
+            if (this.currentVideoElement === video && video.paused && video.readyState >= 2) {
+                console.log('Force playing video after timeout');
+                video.play().catch(err => console.warn('Force play failed:', err));
+            }
+        }, 3000);
+
         video.addEventListener('ended', () => {
+            // Check if this video is still the current one (prevent race condition)
+            if (this.currentVideoElement !== video) {
+                console.log('Video ended event ignored - video is no longer current');
+                return;
+            }
+
             this.currentVideoLoopCount++;
 
             if (this.currentVideoLoopCount < loopCount) {
+                console.log(`Video loop ${this.currentVideoLoopCount}/${loopCount}`);
                 video.currentTime = 0;
                 const replayPromise = video.play();
                 if (replayPromise !== undefined) {
-                    replayPromise.catch(() => {
-                        // Ignore replay errors
+                    replayPromise.catch((error) => {
+                        console.warn('Video replay failed:', error);
+                        // If replay fails, move to next slide
+                        if (this.isPlaying && this.currentVideoElement === video) {
+                            this.nextSlide();
+                        }
                     });
                 }
             } else if (this.isPlaying) {
+                console.log('Video completed all loops, moving to next slide');
                 this.nextSlide();
             }
         });
 
-        video.addEventListener('error', () => {
-            console.error('Video load error:', media.name);
+        video.addEventListener('error', (e) => {
+            // Check if this video is still the current one
+            if (this.currentVideoElement !== video) {
+                return;
+            }
+            console.error('Video load error:', media.name, e);
             if (this.isPlaying) {
                 this.nextSlide();
             }
         });
+
+        // IMPORTANT: Add safety timeout for videos
+        // If video doesn't end naturally (codec issues, old TV browsers), force next slide
+        // Use video duration if available, otherwise estimate based on file
+        let estimatedDuration = media.duration || 300; // Default 5 minutes if unknown
+
+        // On older TVs, video.duration might not be available yet
+        // We'll update the timeout once metadata loads
+        const setupSafetyTimeout = (duration) => {
+            // Clear old timeout if exists
+            if (video._safetyTimeout) {
+                clearTimeout(video._safetyTimeout);
+            }
+
+            const maxVideoDuration = duration * loopCount * 1000 + 5000; // Add 5s buffer
+            video._safetyTimeout = setTimeout(() => {
+                // Only trigger if video is still current AND slideshow is playing
+                if (this.currentVideoElement === video && this.isPlaying) {
+                    console.warn('Video safety timeout triggered - forcing next slide');
+                    this.nextSlide();
+                }
+            }, maxVideoDuration);
+
+            console.log(`Video safety timeout set: ${maxVideoDuration}ms (${duration}s × ${loopCount} loops + 5s buffer)`);
+        };
+
+        // Set initial timeout with estimated duration
+        setupSafetyTimeout(estimatedDuration);
+
+        // Update timeout once we have real duration
+        video.addEventListener('loadedmetadata', () => {
+            if (video.duration && video.duration !== Infinity && video.duration > 0) {
+                console.log('Updating safety timeout with real duration:', video.duration);
+                setupSafetyTimeout(video.duration);
+            }
+        }, { once: true });
+    }
+
+    cleanupCurrentVideo() {
+        // Clean up any existing video element to prevent overlapping playback
+        if (this.currentVideoElement) {
+            console.log('Cleaning up previous video element');
+
+            // Clear safety timeout
+            if (this.currentVideoElement._safetyTimeout) {
+                clearTimeout(this.currentVideoElement._safetyTimeout);
+                this.currentVideoElement._safetyTimeout = null;
+            }
+
+            // Pause and remove all event listeners
+            try {
+                this.currentVideoElement.pause();
+                this.currentVideoElement.src = '';
+                this.currentVideoElement.load(); // Reset video element
+
+                // Remove from DOM if still attached
+                if (this.currentVideoElement.parentNode) {
+                    this.currentVideoElement.parentNode.removeChild(this.currentVideoElement);
+                }
+            } catch (e) {
+                console.warn('Error during video cleanup:', e);
+            }
+
+            // Clear reference
+            this.currentVideoElement = null;
+        }
     }
 
     applyObjectFitPolyfill(videoElement, fitMode, containerWidth, containerHeight) {
@@ -853,12 +1003,22 @@ class SlideshowPlayer {
     }
 
     scheduleNextSlide() {
+        // Clear any existing scheduled transition
         if (this.slideshowInterval) {
             clearTimeout(this.slideshowInterval);
+            this.slideshowInterval = null;
+        }
+
+        // Only schedule if playing
+        // Note: We allow scheduling even during transition because showImage/showVideo
+        // are called inside the transition callback and need to schedule the next slide
+        if (!this.isPlaying) {
+            return;
         }
 
         this.slideshowInterval = setTimeout(() => {
-            if (this.isPlaying) {
+            // Double-check state before executing transition
+            if (this.isPlaying && !this.isTransitioning) {
                 this.nextSlide();
             }
         }, this.slideshowSettings.slideDuration);
