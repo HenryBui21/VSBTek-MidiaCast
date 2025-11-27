@@ -7,7 +7,6 @@ class SlideshowPlayer {
         this.currentIndex = 0;
         this.isPlaying = false;
         this.currentVideoLoopCount = 0;
-        this.currentZoom = 1;
         this.slideshowSettings = {
             slideDuration: 3000,
             transitionSpeed: 600,
@@ -117,15 +116,6 @@ class SlideshowPlayer {
         prevBtn.addEventListener('click', () => this.previousSlide());
         nextBtn.addEventListener('click', () => this.nextSlide());
         playPauseBtn.addEventListener('click', () => this.togglePlayPause());
-
-        // Zoom controls
-        const zoomInBtn = document.getElementById('zoomInBtn');
-        const zoomOutBtn = document.getElementById('zoomOutBtn');
-        const zoomResetBtn = document.getElementById('zoomResetBtn');
-
-        zoomInBtn.addEventListener('click', () => this.zoomIn());
-        zoomOutBtn.addEventListener('click', () => this.zoomOut());
-        zoomResetBtn.addEventListener('click', () => this.zoomReset());
 
         // Settings controls
         const settingsBtn = document.getElementById('slideshowSettingsBtn');
@@ -257,16 +247,6 @@ class SlideshowPlayer {
                     e.preventDefault();
                     this.togglePlayPause();
                     break;
-                case '+':
-                case '=':
-                    this.zoomIn();
-                    break;
-                case '-':
-                    this.zoomOut();
-                    break;
-                case '0':
-                    this.zoomReset();
-                    break;
             }
         });
 
@@ -393,26 +373,21 @@ class SlideshowPlayer {
 
     applyShowControls() {
         const controls = document.getElementById('slideshowControls');
-        const zoomControls = document.getElementById('zoomControls');
 
         if (!this.slideshowSettings.showControls) {
             controls.style.display = 'none';
-            zoomControls.style.display = 'none';
         } else {
             controls.style.display = '';
-            zoomControls.style.display = '';
         }
     }
 
     showControls() {
         const controls = document.getElementById('slideshowControls');
         const info = document.getElementById('slideshowInfo');
-        const zoomControls = document.getElementById('zoomControls');
         const settingsBtn = document.getElementById('slideshowSettingsBtn');
 
         controls.classList.add('visible');
         info.classList.add('visible');
-        zoomControls.classList.add('visible');
         settingsBtn.classList.add('visible');
 
         this.controlsVisible = true;
@@ -437,12 +412,10 @@ class SlideshowPlayer {
     hideControls() {
         const controls = document.getElementById('slideshowControls');
         const info = document.getElementById('slideshowInfo');
-        const zoomControls = document.getElementById('zoomControls');
         const settingsBtn = document.getElementById('slideshowSettingsBtn');
 
         controls.classList.remove('visible');
         info.classList.remove('visible');
-        zoomControls.classList.remove('visible');
         settingsBtn.classList.remove('visible');
 
         this.controlsVisible = false;
@@ -716,7 +689,6 @@ class SlideshowPlayer {
         const img = document.createElement('img');
         img.src = mediaURL;
         img.alt = media.name;
-        img.style.transform = `scale(${this.currentZoom})`;
         img.style.objectFit = imageFit;
 
         // Clear container safely
@@ -748,27 +720,40 @@ class SlideshowPlayer {
         const containerWidth = container.clientWidth || window.innerWidth;
         const containerHeight = container.clientHeight || window.innerHeight;
 
-        // CRITICAL FOR OLD TV: Set both attributes AND inline styles
+        // CRITICAL FOR LG TV: Do NOT use CSS transform on video elements
+        // LG webOS TV uses hardware video overlay which cannot sync with CSS transforms
+        // This causes "audio only, no video" issue on LG TVs
+
+        // For zoom functionality on video: scale dimensions instead of using CSS transform
+        let videoWidth = '100%';
+        let videoHeight = '100%';
+
+        if (this.currentZoom !== 1) {
+            // Calculate scaled dimensions (centered scaling)
+            const scaledWidth = containerWidth * this.currentZoom;
+            const scaledHeight = containerHeight * this.currentZoom;
+            videoWidth = scaledWidth + 'px';
+            videoHeight = scaledHeight + 'px';
+
+            // Center the scaled video
+            video.style.position = 'absolute';
+            video.style.left = '50%';
+            video.style.top = '50%';
+            video.style.marginLeft = -(scaledWidth / 2) + 'px';
+            video.style.marginTop = -(scaledHeight / 2) + 'px';
+        } else {
+            video.style.position = 'relative';
+        }
+
+        // Set dimensions
         video.setAttribute('width', containerWidth);
         video.setAttribute('height', containerHeight);
-
-        // Explicit inline styles for maximum compatibility
-        video.style.width = '100%';
-        video.style.height = '100%';
-        video.style.display = 'block';  // Ensure video is visible
-        video.style.position = 'relative'; // Help with layout
-        video.style.backgroundColor = '#000'; // Black background for video area
+        video.style.width = videoWidth;
+        video.style.height = videoHeight;
+        video.style.display = 'block';
 
         // Apply object-fit with fallback for older browsers
         video.style.objectFit = imageFit;
-
-        // Only apply transform if zoom is not default (avoid unnecessary GPU operations on old TVs)
-        if (this.currentZoom !== 1) {
-            video.style.transform = `scale(${this.currentZoom})`;
-        } else {
-            // Explicitly clear transform for old TVs - don't use translateZ hack
-            video.style.transform = 'none';
-        }
 
         // Use simple HTML5 attributes for better TV browser compatibility
         video.setAttribute('autoplay', '');
@@ -1041,35 +1026,6 @@ class SlideshowPlayer {
         this.showSlide(this.currentIndex);
     }
 
-    // Zoom controls
-    zoomIn() {
-        this.currentZoom = Math.min(this.currentZoom + 0.25, 3);
-        this.applyZoom();
-    }
-
-    zoomOut() {
-        this.currentZoom = Math.max(this.currentZoom - 0.25, 0.5);
-        this.applyZoom();
-    }
-
-    zoomReset() {
-        this.currentZoom = 1;
-        this.applyZoom();
-    }
-
-    applyZoom() {
-        const slide = document.getElementById('currentSlide');
-        const media = slide.querySelector('img, video');
-        if (media) {
-            // Only apply transform if zoom is not default
-            if (this.currentZoom !== 1) {
-                media.style.transform = `scale(${this.currentZoom})`;
-            } else {
-                // Remove transform when at default zoom for better TV compatibility
-                media.style.transform = '';
-            }
-        }
-    }
 
     updateCounter() {
         const counter = document.getElementById('slideCounter');

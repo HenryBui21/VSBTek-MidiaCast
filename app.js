@@ -10,7 +10,6 @@ class MediaCast {
         this.controlsTimeout = null;
         this.isSettingsPanelOpen = false;
         this.currentVideoLoopCount = 0;
-        this.currentZoom = 1;
         this.isAuthenticated = false;
         this.currentUser = null;
         this.isInitialized = false;
@@ -192,14 +191,6 @@ class MediaCast {
         shareLinkBtn.addEventListener('click', () => this.openShareLinkModal());
         this.initShareLinkListeners();
 
-        // Zoom controls
-        const zoomInBtn = document.getElementById('zoomInBtn');
-        const zoomOutBtn = document.getElementById('zoomOutBtn');
-        const zoomResetBtn = document.getElementById('zoomResetBtn');
-
-        zoomInBtn.addEventListener('click', () => this.zoomIn());
-        zoomOutBtn.addEventListener('click', () => this.zoomOut());
-        zoomResetBtn.addEventListener('click', () => this.zoomReset());
 
         // Slideshow settings
         slideshowSettingsBtn.addEventListener('click', (e) => {
@@ -739,7 +730,12 @@ class MediaCast {
             video.src = mediaURL;
             video.controls = true;
             video.autoplay = true;
+            video.playsInline = true; // Important for mobile/TV browsers
             video.className = 'slideshow-media';
+
+            // NOTE: Using opacity transitions on video elements
+            // This works on most devices but may cause issues on some older LG TVs
+            // If video doesn't show, the opacity animation might be the cause
             video.style.opacity = '0';
             video.style.objectFit = this.slideshowSettings.imageFit;
 
@@ -784,12 +780,10 @@ class MediaCast {
     }
 
     previousSlide() {
-        this.currentZoom = 1;
         this.showSlide(this.currentSlideIndex - 1);
     }
 
     nextSlide() {
-        this.currentZoom = 1;
         this.showSlide(this.currentSlideIndex + 1);
     }
 
@@ -907,30 +901,6 @@ class MediaCast {
         }
     }
 
-    zoomIn() {
-        this.currentZoom = Math.min(this.currentZoom + 0.25, 3);
-        this.applyZoom();
-    }
-
-    zoomOut() {
-        this.currentZoom = Math.max(this.currentZoom - 0.25, 0.5);
-        this.applyZoom();
-    }
-
-    zoomReset() {
-        this.currentZoom = 1;
-        this.applyZoom();
-    }
-
-    applyZoom() {
-        const content = document.getElementById('slideshowContent');
-        const media = content.querySelector('.slideshow-media');
-
-        if (media) {
-            media.style.transform = `scale(${this.currentZoom})`;
-            media.style.transition = 'transform 0.3s ease';
-        }
-    }
 
     async saveSettings() {
         try {
