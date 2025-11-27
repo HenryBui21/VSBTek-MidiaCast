@@ -113,11 +113,10 @@ body {
 /* Additional video rendering hints for older TV browsers */
 .slide video {
     background-color: #000;
-    /* Force hardware acceleration on supported browsers */
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
-    /* Improve rendering performance */
-    will-change: transform;
+    /* NOTE: translateZ and will-change removed - they cause black screen on old TVs
+     * Old TV browsers don't have proper GPU support and these CSS hacks
+     * can prevent video from rendering entirely
+     */
 }
 
 /* Slideshow Controls */

@@ -775,10 +775,12 @@ class SlideshowPlayer {
         video.setAttribute('playsinline', '');
         video.setAttribute('preload', 'auto');
 
-        const source = document.createElement('source');
-        source.src = mediaURL;
-        source.type = media.mimeType || 'video/mp4';
-        video.appendChild(source);
+        // CRITICAL FOR OLD TV: Set src directly on video element instead of using <source>
+        // Older TV browsers have better compatibility with direct src attribute
+        video.src = mediaURL;
+        if (media.mimeType) {
+            video.setAttribute('type', media.mimeType);
+        }
 
         // Clear container safely
         container.innerHTML = '';
@@ -787,38 +789,27 @@ class SlideshowPlayer {
         // Store reference to current video
         this.currentVideoElement = video;
 
+        // CRITICAL: Call load() after appending to DOM for old TV browsers
+        // This ensures the video element properly initializes and starts loading
+        try {
+            video.load();
+        } catch (e) {
+            console.warn('Video load failed:', e);
+        }
+
         // Apply object-fit polyfill for older TV browsers that don't support it
         this.applyObjectFitPolyfill(video, imageFit, containerWidth, containerHeight);
 
-        // Enhanced fallback for video playback on older TV browsers
-        video.addEventListener('loadedmetadata', () => {
-            console.log('Video metadata loaded:', {
-                width: video.videoWidth,
-                height: video.videoHeight,
-                duration: video.duration
-            });
-
-            // Ensure video is visible by setting background for debugging
-            if (video.videoWidth === 0 || video.videoHeight === 0) {
-                console.error('Video has no dimensions, possible codec issue');
-            }
-        }, { once: true });
-
+        // Video event handlers for older TV browsers
         video.addEventListener('loadeddata', () => {
-            console.log('Video data loaded, attempting playback');
             const playPromise = video.play();
             if (playPromise !== undefined) {
-                playPromise.then(() => {
-                    console.log('Video playback started successfully');
-                }).catch((error) => {
-                    console.warn('Autoplay blocked:', error);
+                playPromise.catch(() => {
                     // Autoplay was blocked, fallback to muted
                     if (!video.muted) {
                         video.muted = true;
-                        video.play().then(() => {
-                            console.log('Video playing muted after autoplay block');
-                        }).catch((err) => {
-                            console.error('Video playback failed completely:', err);
+                        video.play().catch(() => {
+                            console.error('Video playback failed');
                         });
                     }
                 });
@@ -828,27 +819,23 @@ class SlideshowPlayer {
         // Fallback: If video doesn't load within 3 seconds on old TV, try force play
         setTimeout(() => {
             if (this.currentVideoElement === video && video.paused && video.readyState >= 2) {
-                console.log('Force playing video after timeout');
-                video.play().catch(err => console.warn('Force play failed:', err));
+                video.play().catch(() => {});
             }
         }, 3000);
 
         video.addEventListener('ended', () => {
             // Check if this video is still the current one (prevent race condition)
             if (this.currentVideoElement !== video) {
-                console.log('Video ended event ignored - video is no longer current');
                 return;
             }
 
             this.currentVideoLoopCount++;
 
             if (this.currentVideoLoopCount < loopCount) {
-                console.log(`Video loop ${this.currentVideoLoopCount}/${loopCount}`);
                 video.currentTime = 0;
                 const replayPromise = video.play();
                 if (replayPromise !== undefined) {
-                    replayPromise.catch((error) => {
-                        console.warn('Video replay failed:', error);
+                    replayPromise.catch(() => {
                         // If replay fails, move to next slide
                         if (this.isPlaying && this.currentVideoElement === video) {
                             this.nextSlide();
@@ -856,54 +843,40 @@ class SlideshowPlayer {
                     });
                 }
             } else if (this.isPlaying) {
-                console.log('Video completed all loops, moving to next slide');
                 this.nextSlide();
             }
         });
 
-        video.addEventListener('error', (e) => {
+        video.addEventListener('error', () => {
             // Check if this video is still the current one
             if (this.currentVideoElement !== video) {
                 return;
             }
-            console.error('Video load error:', media.name, e);
             if (this.isPlaying) {
                 this.nextSlide();
             }
         });
 
-        // IMPORTANT: Add safety timeout for videos
-        // If video doesn't end naturally (codec issues, old TV browsers), force next slide
-        // Use video duration if available, otherwise estimate based on file
-        let estimatedDuration = media.duration || 300; // Default 5 minutes if unknown
+        // Safety timeout for videos - force next slide if video doesn't end naturally
+        const estimatedDuration = media.duration || 300;
 
-        // On older TVs, video.duration might not be available yet
-        // We'll update the timeout once metadata loads
         const setupSafetyTimeout = (duration) => {
-            // Clear old timeout if exists
             if (video._safetyTimeout) {
                 clearTimeout(video._safetyTimeout);
             }
-
-            const maxVideoDuration = duration * loopCount * 1000 + 5000; // Add 5s buffer
+            const maxVideoDuration = duration * loopCount * 1000 + 5000;
             video._safetyTimeout = setTimeout(() => {
-                // Only trigger if video is still current AND slideshow is playing
                 if (this.currentVideoElement === video && this.isPlaying) {
-                    console.warn('Video safety timeout triggered - forcing next slide');
                     this.nextSlide();
                 }
             }, maxVideoDuration);
-
-            console.log(`Video safety timeout set: ${maxVideoDuration}ms (${duration}s × ${loopCount} loops + 5s buffer)`);
         };
 
-        // Set initial timeout with estimated duration
         setupSafetyTimeout(estimatedDuration);
 
         // Update timeout once we have real duration
         video.addEventListener('loadedmetadata', () => {
             if (video.duration && video.duration !== Infinity && video.duration > 0) {
-                console.log('Updating safety timeout with real duration:', video.duration);
                 setupSafetyTimeout(video.duration);
             }
         }, { once: true });
@@ -912,8 +885,6 @@ class SlideshowPlayer {
     cleanupCurrentVideo() {
         // Clean up any existing video element to prevent overlapping playback
         if (this.currentVideoElement) {
-            console.log('Cleaning up previous video element');
-
             // Clear safety timeout
             if (this.currentVideoElement._safetyTimeout) {
                 clearTimeout(this.currentVideoElement._safetyTimeout);
@@ -924,14 +895,14 @@ class SlideshowPlayer {
             try {
                 this.currentVideoElement.pause();
                 this.currentVideoElement.src = '';
-                this.currentVideoElement.load(); // Reset video element
+                this.currentVideoElement.load();
 
                 // Remove from DOM if still attached
                 if (this.currentVideoElement.parentNode) {
                     this.currentVideoElement.parentNode.removeChild(this.currentVideoElement);
                 }
             } catch (e) {
-                console.warn('Error during video cleanup:', e);
+                // Silently handle cleanup errors on old TVs
             }
 
             // Clear reference
@@ -942,22 +913,16 @@ class SlideshowPlayer {
     applyObjectFitPolyfill(videoElement, fitMode, containerWidth, containerHeight) {
         // Test if object-fit is supported
         if ('objectFit' in document.documentElement.style) {
-            // Modern browser supports object-fit, no polyfill needed
-            console.log('Object-fit supported, no polyfill needed');
             return;
         }
 
         // Polyfill for older TV browsers that don't support object-fit
-        console.log('Applying object-fit polyfill for older TV browser');
-
         // Set default dimensions immediately to ensure video is visible
-        // even if metadata doesn't load properly
         videoElement.style.width = containerWidth + 'px';
         videoElement.style.height = containerHeight + 'px';
         videoElement.style.position = 'absolute';
         videoElement.style.top = '0';
         videoElement.style.left = '0';
-        console.log('Set default dimensions for old TV:', containerWidth, 'x', containerHeight);
 
         // Try to refine positioning once metadata loads (if it ever does)
         videoElement.addEventListener('loadedmetadata', () => {
@@ -965,7 +930,6 @@ class SlideshowPlayer {
             const videoHeight = videoElement.videoHeight;
 
             if (!videoWidth || !videoHeight) {
-                console.warn('Video dimensions not available');
                 return;
             }
 
@@ -1018,9 +982,7 @@ class SlideshowPlayer {
             videoElement.style.position = 'absolute';
             videoElement.style.top = top + 'px';
             videoElement.style.left = left + 'px';
-            videoElement.style.objectFit = ''; // Clear object-fit since we're using manual positioning
-
-            console.log('Object-fit polyfill applied:', { fitMode, width, height, top, left });
+            videoElement.style.objectFit = '';
         }, { once: true });
     }
 
