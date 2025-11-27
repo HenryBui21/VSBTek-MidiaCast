@@ -10,4 +10,19 @@ services:
       # Persist uploads and data
       - ./uploads:/app/uploads
       - ./data.json:/app/data.json
+
+      # Mount frontend files for instant updates (no rebuild needed)
+      - ./slideshow.js:/app/slideshow.js
+      - ./slideshow.css:/app/slideshow.css
+      - ./slideshow.html:/app/slideshow.html
+      - ./index.html:/app/index.html
+      - ./index.js:/app/index.js
+      - ./styles.css:/app/styles.css
+      - ./api.js:/app/api.js
+      - ./logo.png:/app/logo.png
+      - ./favicon.ico:/app/favicon.ico
+      - ./css-polyfill.js:/app/css-polyfill.js
+
+      # Mount server files (optional - uncomment if you want to edit server code without rebuild)
+      # - ./server.js:/app/server.js
     restart: unless-stopped
