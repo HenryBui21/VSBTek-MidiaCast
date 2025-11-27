@@ -747,8 +747,17 @@ class SlideshowPlayer {
         // Set explicit dimensions for better TV compatibility
         const containerWidth = container.clientWidth || window.innerWidth;
         const containerHeight = container.clientHeight || window.innerHeight;
+
+        // CRITICAL FOR OLD TV: Set both attributes AND inline styles
         video.setAttribute('width', containerWidth);
         video.setAttribute('height', containerHeight);
+
+        // Explicit inline styles for maximum compatibility
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.display = 'block';  // Ensure video is visible
+        video.style.position = 'relative'; // Help with layout
+        video.style.backgroundColor = '#000'; // Black background for video area
 
         // Apply object-fit with fallback for older browsers
         video.style.objectFit = imageFit;
@@ -756,6 +765,9 @@ class SlideshowPlayer {
         // Only apply transform if zoom is not default (avoid unnecessary GPU operations on old TVs)
         if (this.currentZoom !== 1) {
             video.style.transform = `scale(${this.currentZoom})`;
+        } else {
+            // Explicitly clear transform for old TVs - don't use translateZ hack
+            video.style.transform = 'none';
         }
 
         // Use simple HTML5 attributes for better TV browser compatibility
@@ -931,13 +943,23 @@ class SlideshowPlayer {
         // Test if object-fit is supported
         if ('objectFit' in document.documentElement.style) {
             // Modern browser supports object-fit, no polyfill needed
+            console.log('Object-fit supported, no polyfill needed');
             return;
         }
 
         // Polyfill for older TV browsers that don't support object-fit
         console.log('Applying object-fit polyfill for older TV browser');
 
-        // Wait for video metadata to load to get actual dimensions
+        // Set default dimensions immediately to ensure video is visible
+        // even if metadata doesn't load properly
+        videoElement.style.width = containerWidth + 'px';
+        videoElement.style.height = containerHeight + 'px';
+        videoElement.style.position = 'absolute';
+        videoElement.style.top = '0';
+        videoElement.style.left = '0';
+        console.log('Set default dimensions for old TV:', containerWidth, 'x', containerHeight);
+
+        // Try to refine positioning once metadata loads (if it ever does)
         videoElement.addEventListener('loadedmetadata', () => {
             const videoWidth = videoElement.videoWidth;
             const videoHeight = videoElement.videoHeight;
