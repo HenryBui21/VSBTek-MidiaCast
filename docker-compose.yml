@@ -16,7 +16,7 @@ services:
       - ./slideshow.css:/app/slideshow.css
       - ./slideshow.html:/app/slideshow.html
       - ./index.html:/app/index.html
-      - ./index.js:/app/index.js
+      - ./app.js:/app/app.js
       - ./styles.css:/app/styles.css
       - ./api.js:/app/api.js
       - ./logo.png:/app/logo.png
