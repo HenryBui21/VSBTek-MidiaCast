@@ -608,23 +608,26 @@ class SlideshowPlayer {
         // CRITICAL: Stop and cleanup current video before transition
         this.cleanupCurrentVideo();
 
-        // Apply transition effect
-        this.applyTransitionEffect(slideContainer, 'out');
+        // CRITICAL FIX FOR LG webOS TV: Only apply transition to IMAGES
+        // Video elements conflict with hardware overlay when using CSS transitions
+        // This prevents "audio only, no video" issue on LG TVs
+        if (media.type === 'image') {
+            // Apply transition effect for images
+            this.applyTransitionEffect(slideContainer, 'out');
 
-        setTimeout(() => {
-            if (media.type === 'video') {
-                this.showVideo(slideContainer, mediaURL, media);
-            } else {
+            setTimeout(() => {
                 this.showImage(slideContainer, mediaURL, media);
-            }
-
-            this.applyTransitionEffect(slideContainer, 'in');
+                this.applyTransitionEffect(slideContainer, 'in');
+                this.updateCounter();
+                this.isTransitioning = false;
+            }, this.slideshowSettings.transitionSpeed);
+        } else {
+            // Video: NO transition, instant cut to avoid hardware overlay conflicts
+            // This works reliably on all TV browsers including LG webOS
+            this.showVideo(slideContainer, mediaURL, media);
             this.updateCounter();
-
-            // Reset transitioning flag after media is loaded
-            // This prevents rapid clicks during transition
             this.isTransitioning = false;
-        }, this.slideshowSettings.transitionSpeed);
+        }
     }
 
     applyTransitionEffect(container, direction) {

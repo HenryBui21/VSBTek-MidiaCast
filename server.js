@@ -128,19 +128,19 @@ const server = http.createServer((req, res) => {
     // Serve uploaded files
     if (pathname.startsWith('/uploads/')) {
         const filePath = path.join(__dirname, pathname);
-        serveFile(res, filePath);
+        serveFile(res, filePath, req);
         return;
     }
 
     // Serve static files
     let filePath = pathname === '/' ? '/index.html' : pathname;
     filePath = path.join(__dirname, filePath);
-    serveFile(res, filePath);
+    serveFile(res, filePath, req);
 });
 
-// Serve static file
-function serveFile(res, filePath) {
-    fs.readFile(filePath, (err, data) => {
+// Serve static file with streaming and range request support
+function serveFile(res, filePath, req) {
+    fs.stat(filePath, (err, stats) => {
         if (err) {
             res.writeHead(404, { 'Content-Type': 'text/plain' });
             res.end('Not Found');
@@ -150,8 +150,93 @@ function serveFile(res, filePath) {
         const ext = path.extname(filePath).toLowerCase();
         const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
-        res.writeHead(200, { 'Content-Type': contentType });
-        res.end(data);
+        // VIDEO FILES: Support Range Requests for progressive loading and seeking
+        // This allows TV browsers to:
+        // 1. Start playing video before full download
+        // 2. Seek to any position without re-downloading
+        // 3. Reduce memory usage on both server and client
+        if (ext === '.mp4' || ext === '.webm') {
+            const range = req.headers.range;
+
+            if (range) {
+                // Parse Range header: "bytes=start-end"
+                const parts = range.replace(/bytes=/, "").split("-");
+                const start = parseInt(parts[0], 10);
+                const end = parts[1] ? parseInt(parts[1], 10) : stats.size - 1;
+                const chunksize = (end - start) + 1;
+
+                // Create read stream for requested chunk
+                const fileStream = fs.createReadStream(filePath, { start, end });
+
+                // 206 Partial Content - Standard response for range requests
+                res.writeHead(206, {
+                    'Content-Range': `bytes ${start}-${end}/${stats.size}`,
+                    'Accept-Ranges': 'bytes',
+                    'Content-Length': chunksize,
+                    'Content-Type': contentType,
+                    // Cache video for 1 year (immutable content)
+                    'Cache-Control': 'public, max-age=31536000, immutable'
+                });
+
+                fileStream.pipe(res);
+            } else {
+                // No range header - send full file with streaming
+                // Using stream instead of readFile to avoid loading entire video into RAM
+                res.writeHead(200, {
+                    'Content-Length': stats.size,
+                    'Content-Type': contentType,
+                    'Accept-Ranges': 'bytes',
+                    'Cache-Control': 'public, max-age=31536000, immutable'
+                });
+
+                fs.createReadStream(filePath).pipe(res);
+            }
+        } else if (ext === '.js' || ext === '.css') {
+            // JavaScript and CSS files - Cache for 1 day
+            fs.readFile(filePath, (err, data) => {
+                if (err) {
+                    res.writeHead(404, { 'Content-Type': 'text/plain' });
+                    res.end('Not Found');
+                    return;
+                }
+
+                res.writeHead(200, {
+                    'Content-Type': contentType,
+                    'Cache-Control': 'public, max-age=86400'
+                });
+                res.end(data);
+            });
+        } else if (ext === '.png' || ext === '.jpg' || ext === '.jpeg' || ext === '.gif') {
+            // Image files - Cache for 1 year (immutable content)
+            fs.readFile(filePath, (err, data) => {
+                if (err) {
+                    res.writeHead(404, { 'Content-Type': 'text/plain' });
+                    res.end('Not Found');
+                    return;
+                }
+
+                res.writeHead(200, {
+                    'Content-Type': contentType,
+                    'Cache-Control': 'public, max-age=31536000, immutable'
+                });
+                res.end(data);
+            });
+        } else {
+            // Other static files (HTML, etc.) - No cache or short cache
+            fs.readFile(filePath, (err, data) => {
+                if (err) {
+                    res.writeHead(404, { 'Content-Type': 'text/plain' });
+                    res.end('Not Found');
+                    return;
+                }
+
+                res.writeHead(200, {
+                    'Content-Type': contentType,
+                    'Cache-Control': 'no-cache'
+                });
+                res.end(data);
+            });
+        }
     });
 }
 
