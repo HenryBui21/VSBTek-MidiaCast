@@ -689,14 +689,49 @@ class SlideshowPlayer {
 
     showImage(container, mediaURL, media) {
         const imageFit = this.slideshowSettings.imageFit;
-        const img = document.createElement('img');
-        img.src = mediaURL;
-        img.alt = media.name;
+
+        // OPTIMIZATION: Check if we can reuse existing image element with same src
+        // This prevents re-downloading image that's already cached
+        let img = null;
+        const existingImages = container.querySelectorAll('img');
+        for (const existingImage of existingImages) {
+            if (existingImage.src === mediaURL) {
+                // Found matching image - reuse it!
+                img = existingImage;
+                img.style.display = 'block';
+                break;
+            }
+        }
+
+        // Create new image element only if no matching image found
+        if (!img) {
+            img = document.createElement('img');
+            img.src = mediaURL;
+            img.alt = media.name;
+        }
+
+        // Always update object-fit (settings might have changed)
         img.style.objectFit = imageFit;
 
-        // Clear container safely
-        container.innerHTML = '';
-        container.appendChild(img);
+        // Hide all videos before showing image
+        const allVideos = container.querySelectorAll('video');
+        allVideos.forEach(v => {
+            v.style.display = 'none';
+            v.pause();
+        });
+
+        // Hide all other images
+        const allImages = container.querySelectorAll('img');
+        allImages.forEach(image => {
+            if (image !== img) {
+                image.style.display = 'none';
+            }
+        });
+
+        // Append to container if it's a new image element
+        if (!img.parentNode) {
+            container.appendChild(img);
+        }
 
         // Clear reference to video since we're showing image
         this.currentVideoElement = null;
@@ -713,10 +748,9 @@ class SlideshowPlayer {
         this.currentVideoLoopCount = 0;
         const imageFit = this.slideshowSettings.imageFit;
 
-        // CRITICAL: Remove all images from container before showing video
-        // This prevents split-screen issue when transitioning from image to video
+        // Hide all images before showing video (don't remove - keep for cache)
         const existingImages = container.querySelectorAll('img');
-        existingImages.forEach(img => img.remove());
+        existingImages.forEach(img => img.style.display = 'none');
 
         // OPTIMIZATION: Check if we can reuse existing video element with same src
         // This prevents re-downloading video that's already cached
