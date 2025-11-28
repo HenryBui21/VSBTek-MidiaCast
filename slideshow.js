@@ -713,9 +713,44 @@ class SlideshowPlayer {
         this.currentVideoLoopCount = 0;
         const imageFit = this.slideshowSettings.imageFit;
 
-        const video = document.createElement('video');
-        video.id = 'slideshowVideo';
-        video.playsInline = true;
+        // CRITICAL: Remove all images from container before showing video
+        // This prevents split-screen issue when transitioning from image to video
+        const existingImages = container.querySelectorAll('img');
+        existingImages.forEach(img => img.remove());
+
+        // OPTIMIZATION: Check if we can reuse existing video element with same src
+        // This prevents re-downloading video that's already cached
+        let video = null;
+        const existingVideos = container.querySelectorAll('video');
+        for (const existingVideo of existingVideos) {
+            if (existingVideo.src === mediaURL) {
+                // Found matching video - reuse it!
+                video = existingVideo;
+                video.style.display = 'block';
+                video.currentTime = 0; // Reset to start
+                break;
+            }
+        }
+
+        // Create new video element only if no matching video found
+        if (!video) {
+            video = document.createElement('video');
+            video.id = 'slideshowVideo';
+            video.playsInline = true;
+
+            // CRITICAL FOR OLD TV: Set src directly on video element instead of using <source>
+            // Older TV browsers have better compatibility with direct src attribute
+            video.src = mediaURL;
+            if (media.mimeType) {
+                video.setAttribute('type', media.mimeType);
+            }
+
+            // Use simple HTML5 attributes for better TV browser compatibility
+            video.setAttribute('autoplay', '');
+            video.setAttribute('playsinline', '');
+            video.setAttribute('preload', 'auto');
+        }
+
         // Start muted if no user interaction yet, unmuted if user has interacted
         video.muted = !this.hasUserInteracted;
 
@@ -758,116 +793,142 @@ class SlideshowPlayer {
         // Apply object-fit with fallback for older browsers
         video.style.objectFit = imageFit;
 
-        // Use simple HTML5 attributes for better TV browser compatibility
-        video.setAttribute('autoplay', '');
-        video.setAttribute('playsinline', '');
-        video.setAttribute('preload', 'auto');
+        // Append to container if it's a new video element
+        if (!video.parentNode) {
+            // Hide all other videos before adding new one
+            const allVideos = container.querySelectorAll('video');
+            allVideos.forEach(v => v.style.display = 'none');
 
-        // CRITICAL FOR OLD TV: Set src directly on video element instead of using <source>
-        // Older TV browsers have better compatibility with direct src attribute
-        video.src = mediaURL;
-        if (media.mimeType) {
-            video.setAttribute('type', media.mimeType);
+            container.appendChild(video);
+        } else {
+            // Video is being reused - hide other videos
+            const allVideos = container.querySelectorAll('video');
+            allVideos.forEach(v => {
+                if (v !== video) {
+                    v.style.display = 'none';
+                    v.pause();
+                }
+            });
         }
-
-        // Clear container safely
-        container.innerHTML = '';
-        container.appendChild(video);
 
         // Store reference to current video
         this.currentVideoElement = video;
 
-        // CRITICAL: Call load() after appending to DOM for old TV browsers
-        // This ensures the video element properly initializes and starts loading
-        try {
-            video.load();
-        } catch (e) {
-            console.warn('Video load failed:', e);
+        // Determine if this is a reused video
+        const isReusedVideo = video.readyState > 0; // Has data loaded
+
+        // CRITICAL: Only call load() for NEW videos
+        // Calling load() on existing video forces re-download
+        if (!isReusedVideo) {
+            try {
+                video.load();
+            } catch (e) {
+                console.warn('Video load failed:', e);
+            }
         }
 
         // Apply object-fit polyfill for older TV browsers that don't support it
         this.applyObjectFitPolyfill(video, imageFit, containerWidth, containerHeight);
 
-        // Video event handlers for older TV browsers
-        video.addEventListener('loadeddata', () => {
-            const playPromise = video.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(() => {
-                    // Autoplay was blocked, fallback to muted
-                    if (!video.muted) {
-                        video.muted = true;
-                        video.play().catch(() => {
-                            console.error('Video playback failed');
-                        });
-                    }
-                });
-            }
-        }, { once: true });
+        // Setup event handlers - only for NEW videos to avoid duplicate listeners
+        if (!isReusedVideo && !video._eventListenersAdded) {
+            // Mark that we've added listeners to prevent duplicates
+            video._eventListenersAdded = true;
 
-        // Fallback: If video doesn't load within 3 seconds on old TV, try force play
-        setTimeout(() => {
-            if (this.currentVideoElement === video && video.paused && video.readyState >= 2) {
-                video.play().catch(() => {});
-            }
-        }, 3000);
-
-        video.addEventListener('ended', () => {
-            // Check if this video is still the current one (prevent race condition)
-            if (this.currentVideoElement !== video) {
-                return;
-            }
-
-            this.currentVideoLoopCount++;
-
-            if (this.currentVideoLoopCount < loopCount) {
-                video.currentTime = 0;
-                const replayPromise = video.play();
-                if (replayPromise !== undefined) {
-                    replayPromise.catch(() => {
-                        // If replay fails, move to next slide
-                        if (this.isPlaying && this.currentVideoElement === video) {
-                            this.nextSlide();
+            // Video event handlers for older TV browsers
+            video.addEventListener('loadeddata', () => {
+                const playPromise = video.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {
+                        // Autoplay was blocked, fallback to muted
+                        if (!video.muted) {
+                            video.muted = true;
+                            video.play().catch(() => {
+                                console.error('Video playback failed');
+                            });
                         }
                     });
                 }
-            } else if (this.isPlaying) {
-                this.nextSlide();
-            }
-        });
+            }, { once: true });
 
-        video.addEventListener('error', () => {
-            // Check if this video is still the current one
-            if (this.currentVideoElement !== video) {
-                return;
-            }
-            if (this.isPlaying) {
-                this.nextSlide();
-            }
-        });
+            video.addEventListener('ended', () => {
+                // Check if this video is still the current one (prevent race condition)
+                if (this.currentVideoElement !== video) {
+                    return;
+                }
 
-        // Safety timeout for videos - force next slide if video doesn't end naturally
-        const estimatedDuration = media.duration || 300;
+                this.currentVideoLoopCount++;
 
-        const setupSafetyTimeout = (duration) => {
-            if (video._safetyTimeout) {
-                clearTimeout(video._safetyTimeout);
-            }
-            const maxVideoDuration = duration * loopCount * 1000 + 5000;
-            video._safetyTimeout = setTimeout(() => {
-                if (this.currentVideoElement === video && this.isPlaying) {
+                if (this.currentVideoLoopCount < loopCount) {
+                    video.currentTime = 0;
+                    const replayPromise = video.play();
+                    if (replayPromise !== undefined) {
+                        replayPromise.catch(() => {
+                            // If replay fails, move to next slide
+                            if (this.isPlaying && this.currentVideoElement === video) {
+                                this.nextSlide();
+                            }
+                        });
+                    }
+                } else if (this.isPlaying) {
                     this.nextSlide();
                 }
-            }, maxVideoDuration);
-        };
+            });
 
-        setupSafetyTimeout(estimatedDuration);
+            video.addEventListener('error', () => {
+                // Check if this video is still the current one
+                if (this.currentVideoElement !== video) {
+                    return;
+                }
+                if (this.isPlaying) {
+                    this.nextSlide();
+                }
+            });
 
-        // Update timeout once we have real duration
-        video.addEventListener('loadedmetadata', () => {
-            if (video.duration && video.duration !== Infinity && video.duration > 0) {
-                setupSafetyTimeout(video.duration);
+            video.addEventListener('loadedmetadata', () => {
+                if (video.duration && video.duration !== Infinity && video.duration > 0) {
+                    this.setupVideoSafetyTimeout(video, video.duration, loopCount);
+                }
+            }, { once: true });
+        }
+
+        // For reused videos, just play immediately if ready
+        if (isReusedVideo) {
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(() => {
+                    // Autoplay failed, try muted
+                    video.muted = true;
+                    video.play().catch(() => {});
+                });
             }
-        }, { once: true });
+        } else {
+            // Fallback: If video doesn't load within 3 seconds on old TV, try force play
+            setTimeout(() => {
+                if (this.currentVideoElement === video && video.paused && video.readyState >= 2) {
+                    video.play().catch(() => {});
+                }
+            }, 3000);
+        }
+
+        // Setup safety timeout (every time video is shown, not just for new videos)
+        const estimatedDuration = media.duration || 300;
+        this.setupVideoSafetyTimeout(video, estimatedDuration, loopCount);
+    }
+
+    setupVideoSafetyTimeout(video, duration, loopCount) {
+        // Clear existing timeout
+        if (video._safetyTimeout) {
+            clearTimeout(video._safetyTimeout);
+        }
+
+        // Setup new timeout - force next slide if video doesn't end naturally
+        const maxVideoDuration = duration * loopCount * 1000 + 5000;
+        video._safetyTimeout = setTimeout(() => {
+            if (this.currentVideoElement === video && this.isPlaying) {
+                this.nextSlide();
+            }
+        }, maxVideoDuration);
     }
 
     cleanupCurrentVideo() {
@@ -879,21 +940,21 @@ class SlideshowPlayer {
                 this.currentVideoElement._safetyTimeout = null;
             }
 
-            // Pause and remove all event listeners
+            // Pause video but KEEP src to preserve browser cache
+            // This allows browser to reuse cached video data on next load
             try {
                 this.currentVideoElement.pause();
-                this.currentVideoElement.src = '';
-                this.currentVideoElement.load();
 
-                // Remove from DOM if still attached
-                if (this.currentVideoElement.parentNode) {
-                    this.currentVideoElement.parentNode.removeChild(this.currentVideoElement);
-                }
+                // IMPORTANT: Do NOT set src = '' or call load()
+                // Setting src = '' forces browser to drop cached data
+                // We only hide the video element to preserve cache
+                this.currentVideoElement.style.display = 'none';
             } catch (e) {
                 // Silently handle cleanup errors on old TVs
             }
 
-            // Clear reference
+            // Keep reference but mark as inactive
+            // We'll reuse this element for next video
             this.currentVideoElement = null;
         }
     }
