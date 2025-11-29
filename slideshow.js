@@ -258,11 +258,9 @@ class SlideshowPlayer {
             if (!this.hasUserInteracted && !this.isProcessingUnmute) {
                 this.hasUserInteracted = true;
                 this.isProcessingUnmute = true;
-                console.log('User interaction detected, audio autoplay enabled');
 
                 // Handle current video for mobile compatibility
                 if (this.currentVideoElement && this.currentVideoElement.muted) {
-                    console.log('Enabling audio for current video');
 
                     // Check if video is actually playing before interfering
                     const wasPlaying = !this.currentVideoElement.paused;
@@ -435,7 +433,7 @@ class SlideshowPlayer {
                 showControls: this.slideshowSettings.showControls
             });
         } catch (e) {
-            console.log('Không thể lưu cài đặt:', e);
+            console.error('Không thể lưu cài đặt:', e);
         }
     }
 
@@ -493,7 +491,6 @@ class SlideshowPlayer {
     startSlideshow() {
         if (this.mediaItems.length === 0) return;
 
-        console.log('Starting slideshow with', this.mediaItems.length, 'items');
         this.isPlaying = true;
         this.updatePlayPauseButton();
         this.showSlide(this.currentIndex);
@@ -512,7 +509,6 @@ class SlideshowPlayer {
     togglePlayPause() {
         // Prevent rapid clicking
         if (this.isTogglingPlayPause) {
-            console.log('Play/pause already in progress, ignoring click');
             return;
         }
 
@@ -521,17 +517,14 @@ class SlideshowPlayer {
         try {
             if (this.isPlaying) {
                 // Pause slideshow
-                console.log('Pausing slideshow');
                 this.stopSlideshow();
 
                 // Pause current video if it exists and is playing
                 if (this.currentVideoElement && !this.currentVideoElement.paused) {
-                    console.log('Pausing current video');
                     this.currentVideoElement.pause();
                 }
             } else {
                 // Resume slideshow
-                console.log('Resuming slideshow');
                 this.isPlaying = true;
                 this.updatePlayPauseButton();
 
@@ -539,7 +532,6 @@ class SlideshowPlayer {
                 if (this.currentVideoElement) {
                     // We have a video - resume it if paused
                     if (this.currentVideoElement.paused) {
-                        console.log('Resuming paused video');
                         const playPromise = this.currentVideoElement.play();
                         if (playPromise !== undefined) {
                             playPromise.catch((error) => {
@@ -548,14 +540,11 @@ class SlideshowPlayer {
                                 this.nextSlide();
                             });
                         }
-                    } else {
-                        console.log('Video already playing, no action needed');
                     }
                     // Note: Video handles its own timing via 'ended' event
                     // We don't call scheduleNextSlide() for videos
                 } else {
                     // Current slide is an image - schedule next slide transition
-                    console.log('Resuming image slideshow');
                     this.scheduleNextSlide();
                 }
             }
@@ -585,7 +574,6 @@ class SlideshowPlayer {
 
         // Prevent overlapping transitions
         if (this.isTransitioning) {
-            console.log('Transition already in progress, skipping...');
             return;
         }
         this.isTransitioning = true;
@@ -738,7 +726,6 @@ class SlideshowPlayer {
 
         // Always schedule next slide if playing, regardless of how we got here
         if (this.isPlaying) {
-            console.log('Image loaded, scheduling next slide in', this.slideshowSettings.slideDuration, 'ms');
             this.scheduleNextSlide();
         }
     }
@@ -750,16 +737,12 @@ class SlideshowPlayer {
             // Check if video already has sufficient data loaded
             // readyState >= 2 means HAVE_CURRENT_DATA or better
             if (video.readyState >= 2) {
-                console.log('Video already ready, readyState:', video.readyState);
                 resolve();
                 return;
             }
 
-            console.log('Video not ready, readyState:', video.readyState, '- waiting for data');
-
             // If src is different, update it
             if (video.src !== mediaURL) {
-                console.log('Setting video src:', mediaURL);
                 video.src = mediaURL;
             }
 
@@ -774,13 +757,11 @@ class SlideshowPlayer {
 
             // Set up event listeners
             const onReady = () => {
-                console.log('Video ready via loadeddata');
                 cleanup();
                 resolve();
             };
 
             const onCanPlay = () => {
-                console.log('Video ready via canplay');
                 cleanup();
                 resolve();
             };
@@ -809,13 +790,10 @@ class SlideshowPlayer {
             const STALL_THRESHOLD = 3; // 3 seconds of no progress = skip
 
             const progressCheckInterval = setInterval(() => {
-                console.log(`Video progress check: readyState=${video.readyState}, lastState=${lastReadyState}, stallCount=${progressStallCount}`);
-
                 if (video.readyState > lastReadyState) {
                     // Progress detected, reset stall counter
                     lastReadyState = video.readyState;
                     progressStallCount = 0;
-                    console.log('Video loading progress detected - continuing');
                 } else {
                     // No progress
                     progressStallCount++;
@@ -845,14 +823,12 @@ class SlideshowPlayer {
         const existingVideos = container.querySelectorAll('video');
         for (const v of existingVideos) {
             if (v.src === mediaURL) {
-                console.log('Found existing video element for', mediaURL);
                 v.style.display = 'block';
                 return v;
             }
         }
 
         // No matching video found, create new
-        console.log('Creating new video element for', mediaURL);
         const video = document.createElement('video');
         video.playsInline = true;
         video.preload = 'auto';
@@ -865,8 +841,6 @@ class SlideshowPlayer {
         const loopCount = media.loopCount || 1;
         this.currentVideoLoopCount = 0;
         const imageFit = this.slideshowSettings.imageFit;
-
-        console.log('showVideo called:', mediaURL);
 
         // Hide all images before showing video (keep for cache)
         const existingImages = container.querySelectorAll('img');
@@ -933,7 +907,6 @@ class SlideshowPlayer {
 
         // Append to container if new video
         if (isNewVideo) {
-            console.log('Appending new video to container');
             container.appendChild(video);
         }
 
@@ -945,12 +918,10 @@ class SlideshowPlayer {
 
         // Setup event handlers ONCE per video element
         if (!video._eventListenersAdded) {
-            console.log('Adding event listeners to video');
             video._eventListenersAdded = true;
 
             // ended: Video finished playing
             video.addEventListener('ended', () => {
-                console.log('Video ended');
                 if (this.currentVideoElement !== video) {
                     return;
                 }
@@ -958,7 +929,6 @@ class SlideshowPlayer {
                 this.currentVideoLoopCount++;
 
                 if (this.currentVideoLoopCount < loopCount) {
-                    console.log('Replaying, loop', this.currentVideoLoopCount, 'of', loopCount);
                     video.currentTime = 0;
                     video.play().catch(() => {
                         if (this.isPlaying) {
@@ -966,7 +936,6 @@ class SlideshowPlayer {
                         }
                     });
                 } else if (this.isPlaying) {
-                    console.log('Loop complete, next slide');
                     this.nextSlide();
                 }
             });
@@ -984,7 +953,6 @@ class SlideshowPlayer {
 
             // loadedmetadata: Setup safety timeout
             video.addEventListener('loadedmetadata', () => {
-                console.log('loadedmetadata - duration:', video.duration);
                 if (video.duration && video.duration !== Infinity && video.duration > 0) {
                     this.setupVideoSafetyTimeout(video, video.duration, loopCount);
                 }
@@ -993,8 +961,6 @@ class SlideshowPlayer {
 
         // STATE-BASED APPROACH: Ensure video ready before playing
         this.ensureVideoReady(video, mediaURL).then(() => {
-            console.log('Video ensured ready - starting playback');
-
             // Safe to reset currentTime now
             video.currentTime = 0;
 
@@ -1002,7 +968,7 @@ class SlideshowPlayer {
             const playPromise = video.play();
             if (playPromise !== undefined) {
                 playPromise.then(() => {
-                    console.log('Video playing successfully');
+                    // Video playing successfully
                 }).catch((error) => {
                     console.warn('Autoplay blocked, trying muted:', error);
                     video.muted = true;
