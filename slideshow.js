@@ -787,7 +787,7 @@ class SlideshowPlayer {
             // Progressive check: Monitor loading progress
             let lastReadyState = video.readyState;
             let progressStallCount = 0;
-            const STALL_THRESHOLD = 3; // 3 seconds of no progress = skip
+            const STALL_THRESHOLD = 5; // 5 seconds of no progress = skip
 
             const progressCheckInterval = setInterval(() => {
                 if (video.readyState > lastReadyState) {
@@ -799,18 +799,18 @@ class SlideshowPlayer {
                     progressStallCount++;
                     console.warn(`No video progress: ${progressStallCount}s stalled`);
 
-                    // If stalled for 3 consecutive checks → likely broken/too slow
+                    // If stalled for 5 consecutive checks → likely broken/too slow
                     if (progressStallCount >= STALL_THRESHOLD) {
-                        console.error('Video loading stalled - skipping');
+                        console.warn('Video loading stalled - skipping');
                         cleanup();
-                        reject(new Error('Video loading stalled (no progress for 3s)'));
+                        reject(new Error('Video loading stalled (no progress for 5s)'));
                     }
                 }
             }, 1000); // Check every second
 
             // Max timeout: 8 seconds absolute maximum
             const maxTimeoutId = setTimeout(() => {
-                console.error('Video load max timeout exceeded (8s)');
+                console.warn('Video load max timeout exceeded (8s)');
                 cleanup();
                 reject(new Error('Video load timeout exceeded (8s)'));
             }, 8000);
@@ -981,7 +981,7 @@ class SlideshowPlayer {
                 });
             }
         }).catch((error) => {
-            console.error('ensureVideoReady failed:', error);
+            console.warn('ensureVideoReady failed:', error);
             // Try to play anyway
             video.play().catch(() => {
                 if (this.isPlaying) {
