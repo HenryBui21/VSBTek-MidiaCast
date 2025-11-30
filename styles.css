@@ -1638,6 +1638,11 @@ h2 {
         margin-bottom: 2rem;
     }
 
+    /* Disable sticky on mobile/tablet */
+    .upload-section {
+        position: static !important;
+    }
+
     /* Reset upload section styles for mobile */
     .upload-section .upload-header {
         flex-direction: column;
