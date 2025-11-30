@@ -157,32 +157,35 @@
             </button>
         </div>
 
-        <div class="slideshow-controls">
-            <button class="control-btn" id="prevBtn" aria-label="Slide trước">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-                    <polyline points="15 18 9 12 15 6"></polyline>
-                </svg>
-            </button>
-            <button class="control-btn" id="playPauseBtn" aria-label="Phát/Dừng">
-                <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-                <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <rect x="6" y="4" width="4" height="16"></rect>
-                    <rect x="14" y="4" width="4" height="16"></rect>
-                </svg>
-            </button>
-            <button class="control-btn" id="nextBtn" aria-label="Slide sau">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-                    <polyline points="9 18 15 12 9 6"></polyline>
-                </svg>
-            </button>
-        </div>
-
         <div class="slideshow-content" id="slideshowContent">
             <!-- Media will be displayed here -->
         </div>
-        <div class="slideshow-counter" id="slideshowCounter">1 / 1</div>
+
+        <!-- Bottom Info & Controls -->
+        <div class="slideshow-bottom-info">
+            <div class="slideshow-controls">
+                <button class="control-btn" id="prevBtn" aria-label="Slide trước">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+                <button class="control-btn play-pause-btn" id="playPauseBtn" aria-label="Phát/Dừng">
+                    <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <svg class="pause-icon hidden" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <rect x="6" y="4" width="4" height="16"></rect>
+                        <rect x="14" y="4" width="4" height="16"></rect>
+                    </svg>
+                </button>
+                <button class="control-btn" id="nextBtn" aria-label="Slide sau">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+            </div>
+            <div class="slideshow-counter" id="slideshowCounter">1 / 1</div>
+        </div>
 
         <!-- Settings Panel -->
         <div class="slideshow-settings-panel" id="slideshowSettingsPanel">

@@ -727,25 +727,45 @@ h2 {
     stroke-width: 2.5;
 }
 
-.slideshow-controls {
+/* Bottom Info Section - Counter + Controls */
+.slideshow-bottom-info {
     position: absolute;
-    top: 50%;
-    left: 0;
-    right: 0;
-    transform: translateY(-50%);
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
-    justify-content: space-between;
-    padding: 0 2rem;
-    pointer-events: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
     opacity: 0;
     transition: opacity 0.3s ease;
     z-index: 20;
+    pointer-events: none;
 }
 
-.slideshow-modal:hover .slideshow-controls,
-.slideshow-modal.show-controls .slideshow-controls {
+.slideshow-modal:hover .slideshow-bottom-info,
+.slideshow-modal.show-controls .slideshow-bottom-info {
     opacity: 1;
     pointer-events: all;
+}
+
+.slideshow-counter {
+    background: rgba(0, 0, 0, 0.5);
+    /* Safari/iOS support */
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 0.4rem 0.875rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.slideshow-controls {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
 }
 
 .control-btn {
@@ -762,49 +782,32 @@ h2 {
     justify-content: center;
     cursor: pointer;
     transition: all 0.3s ease;
-    pointer-events: all;
 }
 
 .control-btn:hover {
     background: rgba(0, 0, 0, 0.7);
     border-color: rgba(255, 255, 255, 0.4);
-    transform: scale(1.05);
+    transform: scale(1.1);
 }
 
 .control-btn svg {
     width: 20px;
     height: 20px;
     color: white;
-    stroke-width: 2.5;
+}
+
+.play-pause-btn {
+    width: 56px;
+    height: 56px;
+}
+
+.play-pause-btn svg {
+    width: 24px;
+    height: 24px;
 }
 
 #playPauseBtn {
     position: relative;
-}
-
-.slideshow-counter {
-    position: absolute;
-    bottom: 1.5rem;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.5);
-    /* Safari/iOS support */
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    padding: 0.4rem 0.875rem;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    z-index: 20;
-}
-
-.slideshow-modal:hover .slideshow-counter,
-.slideshow-modal.show-controls .slideshow-counter {
-    opacity: 1;
 }
 
 /* Slideshow Zoom Controls */
