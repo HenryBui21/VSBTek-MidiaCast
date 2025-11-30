@@ -691,63 +691,115 @@ class MediaCast {
 
         counter.textContent = `${this.currentSlideIndex + 1} / ${this.mediaItems.length}`;
 
+        // OPTIMIZED: Different handling for images vs videos
         if (item.type === 'image') {
-            const img = new Image();
-            img.onload = () => {
-                const existingElements = content.querySelectorAll('img, video');
-
-                const newImg = document.createElement('img');
-                newImg.src = mediaURL;
-                newImg.alt = item.name;
-                newImg.className = 'slideshow-media';
-                newImg.style.opacity = '0';
-                newImg.style.objectFit = this.slideshowSettings.imageFit;
-
-                content.appendChild(newImg);
-                void newImg.offsetHeight;
-
-                requestAnimationFrame(() => {
-                    content.classList.remove('transition-fade', 'transition-slide', 'transition-zoom', 'transition-flip');
-                    content.classList.add(`transition-${this.slideshowSettings.transitionEffect}`);
-
-                    newImg.style.opacity = '1';
-
-                    existingElements.forEach(el => {
-                        el.style.opacity = '0';
-                        setTimeout(() => {
-                            if (el.parentNode === content) {
-                                content.removeChild(el);
-                            }
-                        }, this.slideshowSettings.transitionSpeed);
-                    });
-                });
-            };
-            img.src = mediaURL;
+            this.showImage(content, mediaURL, item);
         } else {
-            const existingElements = content.querySelectorAll('img, video');
+            this.showVideo(content, mediaURL, item);
+        }
+    }
 
-            const video = document.createElement('video');
+    // OPTIMIZED: Image display with element reuse
+    showImage(container, mediaURL, media) {
+        const existingElements = container.querySelectorAll('img, video');
+
+        // OPTIMIZATION: Try to reuse existing image element
+        let img = null;
+        for (const el of existingElements) {
+            if (el.tagName === 'IMG' && el.src === mediaURL) {
+                img = el;
+                img.style.display = 'block';
+                break;
+            }
+        }
+
+        // Create new image only if not found
+        if (!img) {
+            img = document.createElement('img');
+            img.src = mediaURL;
+            img.alt = media.name;
+            img.className = 'slideshow-media';
+            img.style.objectFit = this.slideshowSettings.imageFit;
+        }
+
+        img.style.opacity = '0';
+
+        // Ensure image is in container
+        if (!img.parentNode) {
+            container.appendChild(img);
+        }
+
+        void img.offsetHeight;
+
+        requestAnimationFrame(() => {
+            container.classList.remove('transition-fade', 'transition-slide', 'transition-zoom', 'transition-flip');
+            container.classList.add(`transition-${this.slideshowSettings.transitionEffect}`);
+
+            img.style.opacity = '1';
+
+            // Hide other elements
+            existingElements.forEach(el => {
+                if (el !== img) {
+                    if (el.tagName === 'VIDEO') {
+                        el.pause();
+                    }
+                    el.style.opacity = '0';
+                    el.style.display = 'none';
+                }
+            });
+
+            // Schedule next slide if playing
+            if (this.isPlaying) {
+                this.scheduleNextSlide();
+            }
+        });
+    }
+
+    // OPTIMIZED: Video display with element reuse and NO CSS transitions (LG TV fix)
+    showVideo(container, mediaURL, media) {
+        const existingElements = container.querySelectorAll('img, video');
+
+        // OPTIMIZATION: Try to reuse existing video element
+        let video = null;
+        for (const el of existingElements) {
+            if (el.tagName === 'VIDEO' && el.src === mediaURL) {
+                video = el;
+                video.style.display = 'block';
+                break;
+            }
+        }
+
+        // Create new video only if not found
+        const isNewVideo = !video;
+        if (isNewVideo) {
+            video = document.createElement('video');
             video.src = mediaURL;
-            video.controls = true;
-            video.autoplay = true;
-            video.playsInline = true; // Important for mobile/TV browsers
             video.className = 'slideshow-media';
+            video.playsInline = true;
+            video.controls = true;
+        }
 
-            // NOTE: Using opacity transitions on video elements
-            // This works on most devices but may cause issues on some older LG TVs
-            // If video doesn't show, the opacity animation might be the cause
-            video.style.opacity = '0';
-            video.style.objectFit = this.slideshowSettings.imageFit;
+        // CRITICAL FIX: NO opacity transition for video (LG TV compatibility)
+        video.style.opacity = '1';
+        video.style.objectFit = this.slideshowSettings.imageFit;
 
-            const loopCount = item.videoLoopCount || item.loopCount || 1;
-            this.currentVideoLoopCount = 0;
+        const loopCount = media.videoLoopCount || media.loopCount || 1;
+        this.currentVideoLoopCount = 0;
+
+        // Setup event listeners only once
+        if (!video._eventListenersAdded) {
+            video._eventListenersAdded = true;
 
             video.addEventListener('ended', () => {
                 this.currentVideoLoopCount++;
 
                 if (this.currentVideoLoopCount < loopCount) {
                     video.currentTime = 0;
-                    video.play();
+                    video.play().catch(() => {
+                        if (this.isPlaying) {
+                            this.nextSlide();
+                        }
+                    });
                 } else {
                     if (this.isPlaying) {
                         this.nextSlide();
@@ -755,28 +807,59 @@ class MediaCast {
                 }
             });
 
-            content.appendChild(video);
-            void video.offsetHeight;
-
-            requestAnimationFrame(() => {
-                content.classList.remove('transition-fade', 'transition-slide', 'transition-zoom', 'transition-flip');
-                content.classList.add(`transition-${this.slideshowSettings.transitionEffect}`);
-
-                video.style.opacity = '1';
-
-                existingElements.forEach(el => {
-                    if (el.tagName === 'VIDEO') {
-                        el.pause();
-                    }
-                    el.style.opacity = '0';
-                    setTimeout(() => {
-                        if (el.parentNode === content) {
-                            content.removeChild(el);
-                        }
-                    }, this.slideshowSettings.transitionSpeed);
-                });
+            video.addEventListener('error', (e) => {
+                console.error('Video error:', e, video.error);
+                if (this.isPlaying) {
+                    this.nextSlide();
+                }
             });
         }
+
+        // Append to container if new
+        if (isNewVideo) {
+            container.appendChild(video);
+        }
+
+        // Hide all other elements INSTANTLY (no transition for video)
+        existingElements.forEach(el => {
+            if (el !== video) {
+                if (el.tagName === 'VIDEO') {
+                    el.pause();
+                }
+                el.style.display = 'none';
+            }
+        });
+
+        // Reset and play video
+        video.currentTime = 0;
+        video.play().catch(error => {
+            console.warn('Autoplay blocked, trying muted:', error);
+            video.muted = true;
+            video.play().catch(mutedError => {
+                console.error('Video playback failed:', mutedError);
+                if (this.isPlaying) {
+                    this.nextSlide();
+                }
+            });
+        });
+
+        // Note: Video timing handled by 'ended' event, not scheduleNextSlide
+    }
+
+    // OPTIMIZED: Event-driven slide scheduling (replaces setInterval)
+    scheduleNextSlide() {
+        // Clear any existing timeout
+        if (this.slideshowInterval) {
+            clearTimeout(this.slideshowInterval);
+            this.slideshowInterval = null;
+        }
+
+        // Schedule next slide
+        this.slideshowInterval = setTimeout(() => {
+            if (this.isPlaying) {
+                this.nextSlide();
+            }
+        }, this.slideshowSettings.slideDuration);
     }
 
     previousSlide() {
@@ -804,18 +887,16 @@ class MediaCast {
 
     startSlideshow() {
         this.isPlaying = true;
-        this.slideshowInterval = setInterval(() => {
-            const currentItem = this.mediaItems[this.currentSlideIndex];
-            if (currentItem && currentItem.type === 'image') {
-                this.nextSlide();
-            }
-        }, this.slideshowSettings.slideDuration);
+        // OPTIMIZED: Don't use setInterval - let showImage/showVideo handle timing
+        // Images will call scheduleNextSlide()
+        // Videos will auto-advance on 'ended' event
     }
 
     stopSlideshow() {
         this.isPlaying = false;
+        // OPTIMIZED: Clear timeout instead of interval
         if (this.slideshowInterval) {
-            clearInterval(this.slideshowInterval);
+            clearTimeout(this.slideshowInterval);
             this.slideshowInterval = null;
         }
     }
