@@ -289,6 +289,13 @@ main {
     padding: 2rem 0;
 }
 
+/* Main Layout - Two Column Design */
+.main-layout {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
 section {
     background: var(--card-bg);
     border-radius: 12px;
@@ -297,10 +304,74 @@ section {
     box-shadow: var(--shadow);
 }
 
+/* Upload Section - 20% width, left side */
+.upload-section {
+    flex: 0 0 20%;
+    min-width: 250px;
+    margin-bottom: 0;
+}
+
+/* Sticky Upload Section - Progressive Enhancement */
+@supports (position: sticky) {
+    .upload-section {
+        position: sticky;
+        top: 1rem;
+        align-self: flex-start;
+    }
+}
+
+/* Gallery Section - 80% width, right side */
+.gallery-section {
+    flex: 1;
+    margin-bottom: 0;
+}
+
 h2 {
     font-size: 1.75rem;
     margin-bottom: 1.5rem;
     color: var(--text-primary);
+}
+
+/* Upload Section Adjustments for narrow layout */
+.upload-section .upload-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.upload-section .upload-header h2 {
+    font-size: 1.25rem;
+}
+
+.upload-section .upload-category-controls {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.5rem;
+}
+
+.upload-section .category-select {
+    width: 100%;
+}
+
+.upload-section .btn-outline {
+    width: 100%;
+}
+
+.upload-section .upload-area {
+    padding: 2rem 1rem;
+}
+
+.upload-section .upload-icon {
+    width: 48px;
+    height: 48px;
+}
+
+.upload-section .upload-text {
+    font-size: 1rem;
+}
+
+.upload-section .upload-hint {
+    font-size: 0.75rem;
 }
 
 /* Upload Area */
@@ -1555,6 +1626,50 @@ h2 {
 }
 
 /* Responsive */
+@media (max-width: 992px) {
+    .main-layout {
+        flex-direction: column;
+    }
+
+    .upload-section,
+    .gallery-section {
+        flex: none;
+        width: 100%;
+        margin-bottom: 2rem;
+    }
+
+    /* Reset upload section styles for mobile */
+    .upload-section .upload-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .upload-section .upload-header h2 {
+        font-size: 1.75rem;
+    }
+
+    .upload-section .upload-category-controls {
+        width: 100%;
+    }
+
+    .upload-section .upload-area {
+        padding: 3rem;
+    }
+
+    .upload-section .upload-icon {
+        width: 64px;
+        height: 64px;
+    }
+
+    .upload-section .upload-text {
+        font-size: 1.25rem;
+    }
+
+    .upload-section .upload-hint {
+        font-size: 0.875rem;
+    }
+}
+
 @media (max-width: 768px) {
     .header-container {
         gap: 1rem;
