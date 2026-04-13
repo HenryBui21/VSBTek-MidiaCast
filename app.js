@@ -677,8 +677,16 @@ class MediaCast {
         if (this.currentSlideIndex < 0) {
             this.currentSlideIndex = this.mediaItems.length - 1;
         }
+        
         if (this.currentSlideIndex >= this.mediaItems.length) {
-            this.currentSlideIndex = 0;
+            // Check loop setting before resetting to first slide
+            if (this.slideshowSettings.loopSlideshow) {
+                this.currentSlideIndex = 0;
+            } else {
+                this.currentSlideIndex = this.mediaItems.length - 1;
+                this.stopSlideshow();
+                return;
+            }
         }
 
         const item = this.mediaItems[this.currentSlideIndex];

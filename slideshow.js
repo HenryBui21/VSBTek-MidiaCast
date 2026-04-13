@@ -83,7 +83,7 @@ class SlideshowPlayer {
             // Sort by upload date
             this.mediaItems.sort((a, b) => new Date(a.uploadedAt) - new Date(b.uploadedAt));
 
-            // Load settings
+            // Load settings from server
             const settings = await api.getSettings();
             if (settings) {
                 if (settings.slideDuration) this.slideshowSettings.slideDuration = settings.slideDuration;
@@ -95,6 +95,13 @@ class SlideshowPlayer {
                 if (settings.backgroundColor) this.slideshowSettings.backgroundColor = settings.backgroundColor;
                 if (settings.showCounter !== undefined) this.slideshowSettings.showCounter = settings.showCounter;
                 if (settings.showControls !== undefined) this.slideshowSettings.showControls = settings.showControls;
+            }
+
+            // OVERRIDE: Load local loop setting for this specific TV
+            const localLoop = localStorage.getItem('slideshow_loop_override');
+            if (localLoop !== null) {
+                this.slideshowSettings.loopSlideshow = localLoop === 'true';
+                console.log('Using local loop setting override:', this.slideshowSettings.loopSlideshow);
             }
         } catch (e) {
             console.error('Lỗi tải từ server:', e);
@@ -420,13 +427,20 @@ class SlideshowPlayer {
     }
 
     async saveSettings() {
+        // Save loop setting locally for this specific TV
+        localStorage.setItem('slideshow_loop_override', this.slideshowSettings.loopSlideshow);
+
         try {
+            // Save other settings to server (global) but EXCLUDE loopSlideshow from global update
+            // if we want it to be strictly per-TV. 
+            // Note: We keep sending other UI preferences to server so they stay consistent if desired,
+            // but we stop sending loopSlideshow to avoid affecting other TVs.
             await api.updateSettings({
                 slideDuration: this.slideshowSettings.slideDuration,
                 transitionEffect: this.slideshowSettings.transitionEffect,
                 transitionSpeed: this.slideshowSettings.transitionSpeed,
                 playOrder: this.slideshowSettings.playOrder,
-                loopSlideshow: this.slideshowSettings.loopSlideshow,
+                // loopSlideshow: this.slideshowSettings.loopSlideshow, // Removed from global update
                 imageFit: this.slideshowSettings.imageFit,
                 backgroundColor: this.slideshowSettings.backgroundColor,
                 showCounter: this.slideshowSettings.showCounter,
